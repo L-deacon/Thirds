@@ -52,7 +52,13 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .src svg { width: 16px; height: 16px; flex: none; }
 
 .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.vf { position: relative; background: var(--void); border-radius: 18px; overflow: hidden; }
+.vf { position: relative; background: var(--void); border-radius: 18px; overflow: hidden; touch-action: none; }
+.picker { position: absolute; left: 12px; top: 12px; display: flex; gap: 3px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--void) 65%, transparent); }
+.picker button { display: flex; flex-direction: column; align-items: center; gap: 1px; border: none; border-radius: 9px; background: transparent; color: var(--fg);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; padding: 5px 8px; }
+.picker button small { font-size: 10px; color: var(--muted); }
+.picker button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.picker button[aria-pressed="true"] small { color: var(--accent-ink); }
 .vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .vf video { transition: transform 0.6s cubic-bezier(.2, .7, .2, 1), filter 0.6s ease; }
 .vf .lens { position: absolute; inset: 0; transition: transform 0.35s ease; }
@@ -125,6 +131,20 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .shots figcaption { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .save { background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 9px; font-weight: 500; font-size: 14px; }
 .savehelp { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--bg); }
+.seg button { flex: 1; border: none; border-radius: 9px; padding: 8px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
+.sheet-row { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sheet-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.critic { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--bg); }
+.critic .score { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
+.critic .score b { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 34px; line-height: 1; color: var(--accent); }
+.critic .score span { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.critic ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.critic li { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.critic li.ok { color: var(--fg); }
+.critic li.no { color: var(--stamp); border-color: color-mix(in srgb, var(--stamp) 40%, var(--line)); }
+.look:disabled, .seg button:disabled { opacity: 0.5; }
 .tip { margin: 0; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tip b { color: var(--accent); font-weight: 600; }
 
@@ -165,6 +185,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <canvas class="still" id="still"></canvas>
       <canvas class="overlay" id="overlay"></canvas>
       <div class="tag" id="tag">Sample · not your photo</div>
+      <div class="picker" id="picker" role="group" aria-label="Suggested shots" hidden></div>
       <div class="target" id="target" hidden><canvas id="targetThumb"></canvas><span>Target</span></div>
       <div class="hint" id="hint">Tap the shutter to <b>scan</b></div>
       <div class="zooms" id="zooms" role="group" aria-label="Zoom" hidden></div>
@@ -186,17 +207,23 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 </div>
 
 <div class="sheet" id="sheet" hidden>
-  <div class="sheet-card" role="dialog" aria-label="Your photos">
+  <div class="sheet-card" role="dialog" aria-label="Your photo">
     <div class="sheet-head">
       <div><h2>Developed</h2><small id="sheetLook">Auto look</small></div>
       <button class="done" id="closeSheet">Done</button>
     </div>
-    <p class="tip" id="sheetTip" hidden></p>
-    <div class="looks" id="sheetLooks" role="group" aria-label="Change the look"></div>
-    <div class="shots">
-      <figure><img id="imgFramed" alt="Framed shot"><figcaption>Framed shot</figcaption><button class="save" data-save="framed">Save</button></figure>
-      <figure><img id="imgFull" alt="Full frame"><figcaption>Full frame</figcaption><button class="save" data-save="full">Save</button></figure>
+    <div class="seg" id="viewSeg" role="group" aria-label="Show">
+      <button data-view="framed" aria-pressed="true">Framed shot</button><button data-view="full" aria-pressed="false">Full frame</button>
     </div>
+    <p class="tip" id="sheetTip" hidden></p>
+    <div class="shots">
+      <figure><img id="imgOrig" alt="Original photo, no edits"><figcaption>Original</figcaption><button class="save" data-save="orig">Save original</button></figure>
+      <figure><img id="imgEdit" alt="Edited photo"><figcaption>Edited</figcaption><button class="save" data-save="edit">Save edited</button></figure>
+    </div>
+    <div class="critic" id="critic" hidden></div>
+    <div class="sheet-row"><span class="sheet-label">Look</span><div class="looks" id="sheetLooks" role="group" aria-label="Change the look"></div></div>
+    <div class="sheet-row"><span class="sheet-label">Border</span><div class="looks" id="sheetBorders" role="group" aria-label="Border"></div></div>
+    <div class="sheet-row" ><span class="sheet-label">Effects</span><div class="looks"><button class="look" id="portraitBtn" aria-pressed="false" hidden>Portrait blur</button></div></div>
     <p class="savehelp" id="saveHelp">Tap Save, or press and hold a photo and choose Save to Photos.</p>
   </div>
 </div>
@@ -268,13 +295,17 @@ function findBestCrop(d, W, H, subjects) {
   const main = subjects.slice().sort((a, b) => b.weight - a.weight)[0];
   const hasAI = subjects.length > 0;
   let best = null;
-  const sLo = hasAI ? 0.4 : 0.5, sHi = hasAI ? 0.921 : 0.781;
+  const bands = [null, null, null]; // best close-up, balanced and wide crop
+  const sLo = hasAI ? 0.4 : 0.46, sHi = 0.921, sBest = hasAI ? 0.921 : 0.781;
   for (let sc = sLo; sc <= sHi; sc += 0.04) {
     const bw = Math.round(W * sc), bh = Math.round(H * sc);
     for (let y = 0; y <= H - bh; y += 2) for (let x = 0; x <= W - bw; x += 2) {
       const s = sum(I, x, y, bw, bh); if (s <= 0) continue;
       const cx = (sum(IX, x, y, bw, bh) / s - x) / bw, cy = (sum(IY, x, y, bw, bh) / s - y) / bh;
       let score = ((s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + nearThird(cx, cy) * 0.15) * (hasAI ? 0.5 : 1);
+      // busy edges: lots of detail running into the border usually means something is cut off
+      const inner = bw > 4 && bh > 4 ? sum(I, x + 1, y + 1, bw - 2, bh - 2) : 0, edge = (s - inner) / Math.max(1, 2 * (bw + bh) - 4);
+      score -= 0.12 * Math.max(0, edge / mean - 1);
       if (hasAI) {
         const bx = x / W, by = y / H, bwN = bw / W, bhN = bh / H;
         for (const sub of subjects) {
@@ -294,10 +325,94 @@ function findBestCrop(d, W, H, subjects) {
           } else score -= main.weight;
         }
       }
-      if (!best || score > best.score) best = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
+      const cand = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
+      if (sc <= sBest && (!best || score > best.score)) best = cand;
+      const band = sc < 0.58 ? 0 : sc < 0.78 ? 1 : 2;
+      if (!bands[band] || score > bands[band].score) bands[band] = cand;
     }
   }
+  // three suggestions: close-up, balanced, wide (dropping near-duplicates)
+  const iou = (a, b) => {
+    const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    return (ix * iy) / (a.w * a.h + b.w * b.h - ix * iy);
+  };
+  const names = ["Close", "Balanced", "Wide"], options = [];
+  bands.forEach((b, i) => { if (b && !options.some((o) => iou(o, b) > 0.82)) options.push({ ...b, label: names[i] }); });
+  if (best && !options.some((o) => iou(o, best) > 0.82)) options.push({ ...best, label: "Best" });
+  let bi = 0; options.forEach((o, i) => { if (best && iou(o, best) > iou(options[bi], best)) bi = i; });
+  if (best) { best.options = options; best.bestIndex = bi; }
   return best;
+}
+
+// The shot critic: scores a crop 0-100 on things photographers judge, with reasons.
+// (Rules-based, not a trained AI — trained "beauty" models are too big for a phone browser.)
+function critique(box, d, W, H, subjects, tilt) {
+  const N = W * H, L = toGray(d, N);
+  const x0 = Math.round(box.x * W), y0 = Math.round(box.y * H), bw = Math.max(4, Math.round(box.w * W)), bh = Math.max(4, Math.round(box.h * H));
+  const notes = []; let score = 50;
+  // 1) subject placement
+  const thirds = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+  const main = (subjects || []).slice().sort((a, b) => b.weight - a.weight)[0];
+  if (main) {
+    const [fx, fy] = focalPoint(main), rx = (fx - box.x) / box.w, ry = (fy - box.y) / box.h;
+    let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(rx - tx, ry - ty));
+    const centred = Math.hypot(rx - 0.5, ry - 0.5) < 0.08;
+    if (rx < 0 || rx > 1 || ry < 0 || ry > 1) { score -= 20; notes.push({ ok: false, text: `${main.kind} is outside the frame` }); }
+    else if (dmin < 0.12) { score += 14; notes.push({ ok: true, text: `${main.kind} on a thirds point` }); }
+    else if (centred) { score += 6; notes.push({ ok: true, text: `${main.kind} centred` }); }
+    else { score -= 4; notes.push({ ok: false, text: `${main.kind} a little off-balance` }); }
+    const fill = (main.w * main.h) / (box.w * box.h);
+    if (fill < 0.06) { score -= 8; notes.push({ ok: false, text: "subject quite small" }); }
+    else if (fill > 0.6) { score -= 6; notes.push({ ok: false, text: "framing very tight" }); }
+    else { score += 8; notes.push({ ok: true, text: "good subject size" }); }
+  }
+  // 2) nothing important cut off
+  let cut = null;
+  for (const s of subjects || []) {
+    const ix = Math.max(0, Math.min(box.x + box.w, s.x + s.w) - Math.max(box.x, s.x)), iy = Math.max(0, Math.min(box.y + box.h, s.y + s.h) - Math.max(box.y, s.y));
+    const ov = (ix * iy) / (s.w * s.h); if (ov > 0.05 && ov < 0.95 && s.weight >= 0.8) { cut = s; break; }
+  }
+  if (cut) { score -= 14; notes.push({ ok: false, text: `cuts through a ${cut.kind}` }); }
+  else if (subjects && subjects.length) { score += 8; notes.push({ ok: true, text: "nothing important cut off" }); }
+  // 3) clean edges (little detail touching the border)
+  let edge = 0, inner = 0, ne = 0, ni = 0;
+  for (let y = y0; y < Math.min(H, y0 + bh); y++) for (let x = x0; x < Math.min(W, x0 + bw); x++) {
+    if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue;
+    const i = y * W + x, g = Math.abs(L[i + 1] - L[i - 1]) + Math.abs(L[i + W] - L[i - W]);
+    if (x <= x0 + 1 || y <= y0 + 1 || x >= x0 + bw - 2 || y >= y0 + bh - 2) { edge += g; ne++; } else { inner += g; ni++; }
+  }
+  const er = (edge / Math.max(1, ne)) / Math.max(1, inner / Math.max(1, ni));
+  if (er < 0.9) { score += 10; notes.push({ ok: true, text: "clean edges" }); }
+  else if (er > 1.4) { score -= 10; notes.push({ ok: false, text: "busy edges" }); }
+  // 4) exposure inside the crop
+  let hiC = 0, loC = 0, n = 0;
+  for (let y = y0; y < Math.min(H, y0 + bh); y++) for (let x = x0; x < Math.min(W, x0 + bw); x++) { const v = L[y * W + x]; if (v > 248) hiC++; if (v < 8) loC++; n++; }
+  if (hiC / n > 0.08) { score -= 8; notes.push({ ok: false, text: "bright areas blown out" }); }
+  else if (loC / n > 0.15) { score -= 6; notes.push({ ok: false, text: "deep shadows" }); }
+  else { score += 6; notes.push({ ok: true, text: "good exposure" }); }
+  // 5) level
+  if (tilt != null) {
+    if (Math.abs(tilt) < 1.5) { score += 6; notes.push({ ok: true, text: "level" }); }
+    else { score -= Math.min(8, Math.abs(tilt)); notes.push({ ok: false, text: `tilted ${Math.abs(tilt).toFixed(1)}° (auto-straightened)` }); }
+  }
+  return { score: Math.max(0, Math.min(100, Math.round(score))), notes };
+}
+
+// Which way is "down"? Turns the phone's gravity reading into a roll angle in degrees
+// (positive = the phone's top is turned clockwise). Works for both iPhone and Android sign conventions.
+function tiltFromGravity(gx, gy) {
+  return (gy <= 0 ? Math.atan2(gx, -gy) : Math.atan2(-gx, gy)) * 180 / Math.PI;
+}
+
+// Where a point moves when a picture is rotated by `deg` around its centre and scaled by `s`.
+function rotatePoint(px, py, W, H, deg, s) {
+  const t = deg * Math.PI / 180, cx = W / 2, cy = H / 2, dx = px - cx, dy = py - cy;
+  return [cx + s * (dx * Math.cos(t) - dy * Math.sin(t)), cy + s * (dx * Math.sin(t) + dy * Math.cos(t))];
+}
+// How much to enlarge a rotated picture so no blank corners show.
+function straightenScale(W, H, deg) {
+  const t = Math.abs(deg) * Math.PI / 180;
+  return Math.max((W * Math.cos(t) + H * Math.sin(t)) / W, (W * Math.sin(t) + H * Math.cos(t)) / H);
 }
 
 // Turn the AI detector's raw results into weighted subjects (fractions of the frame).
@@ -507,7 +622,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v7";
+  const VERSION = "v8";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -529,14 +644,17 @@ function sharpen(p, W, H, amount) {
     img: null, ref: null, box: null, subject: "", analyzing: null,
     tpls: null, track: null, trackIdx: null, lastTrack: 0, alignedSince: 0, lostSince: 0,
     scanStart: 0, scanTimer: null, stream: null, lastShot: null, claudeTip: "",
-    zoom: 1, lensKind: "wide", cams: { wide: null, ultra: null }, zoomed: false,
+    zoom: 1, lensKind: "wide", cams: { wide: null, ultra: null }, zoomed: false, view: "framed", dev: null, orig: null,
     res: "", bestRes: {}, hq: false, lastBase: null, lastCrop: null, lastKey: "natural",
+    tilt: null, options: [], optIdx: 0, critic: null, subjects: [], draft: null,
+    border: "none", portrait: false, lastMask: null, devFramed: null, devFull: null,
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
   const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
 
   /* ---------- free on-device AI (Google MediaPipe) ---------- */
-  const ai = { status: "off", obj: null, face: null };
+  const ai = { status: "off", obj: null, face: null, seg: null };
+  const SEG_MODEL = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite";
   async function loadAI() {
     if (ai.status !== "off") return;
     ai.status = "loading"; setReadout();
@@ -551,6 +669,11 @@ function sharpen(p, W, H, amount) {
           baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" }, runningMode: "IMAGE", minDetectionConfidence: 0.5,
         });
       } catch (e) { ai.face = null; }
+      try {
+        ai.seg = await v.ImageSegmenter.createFromOptions(files, {
+          baseOptions: { modelAssetPath: SEG_MODEL, delegate: "CPU" }, runningMode: "IMAGE", outputConfidenceMasks: true, outputCategoryMask: false,
+        });
+      } catch (e) { ai.seg = null; }
       ai.status = "ready";
     } catch (e) { ai.status = "failed"; }
     setReadout();
@@ -574,6 +697,8 @@ function sharpen(p, W, H, amount) {
       if (motion.on) return;
       motion.on = true;
       window.addEventListener("devicemotion", (e) => {
+        const gv = e.accelerationIncludingGravity;
+        if (gv && gv.x != null && Math.abs(gv.z ?? 0) < 8) { const t = tiltFromGravity(gv.x, gv.y); state.tilt = state.tilt == null ? t : state.tilt * 0.85 + t * 0.15; }
         const r = e.rotationRate; if (!r) return;
         const now = performance.now(), dt = motion.last ? Math.min(0.1, (now - motion.last) / 1000) : 0; motion.last = now;
         motion.g[0] += (r.alpha || 0) * dt; motion.g[1] += (r.beta || 0) * dt; motion.g[2] += (r.gamma || 0) * dt;
@@ -721,6 +846,19 @@ function sharpen(p, W, H, amount) {
       c.fillStyle = accent(); c.fillRect(0, H - 4 * dpr, W * p, 4 * dpr);
       return;
     }
+    // your own frame being drawn
+    if (state.draft) { c.setLineDash([8 * dpr, 6 * dpr]); drawBox(c, state.draft, W, H, dpr, "#ffffff", true); c.setLineDash([]); return; }
+    // spirit level (live camera, phone held upright)
+    if (state.source === "live" && state.tilt != null && state.phase !== "scanning" && !(state.phase === "aiming" && state.alignedSince)) {
+      const t = state.tilt, lvl = Math.abs(t) < 1, cx = W / 2, cy = H / 2, len = W * 0.22;
+      c.save(); c.translate(cx, cy);
+      c.strokeStyle = "rgba(255,255,255,.55)"; c.lineWidth = 1.5 * dpr; c.beginPath();
+      c.moveTo(-len - 18 * dpr, 0); c.lineTo(-len - 6 * dpr, 0); c.moveTo(len + 6 * dpr, 0); c.lineTo(len + 18 * dpr, 0); c.stroke();
+      c.rotate(-t * Math.PI / 180);
+      c.strokeStyle = lvl ? "#ffffff" : accent(); c.lineWidth = (lvl ? 2.5 : 2) * dpr; c.beginPath(); c.moveTo(-len, 0); c.lineTo(len, 0); c.stroke();
+      c.restore();
+      if (!lvl && Math.abs(t) < 30) label(c, `${Math.abs(t).toFixed(1)}°`, cx, cy + 26 * dpr, dpr, accent());
+    }
     if (state.phase === "ready" && state.box) {
       drawBox(c, state.box, W, H, dpr, accent(), true);
       if (state.subject) label(c, state.subject.toUpperCase(), (state.box.x + state.box.w / 2) * W, state.box.y * H + 22 * dpr, dpr, accent());
@@ -761,6 +899,7 @@ function sharpen(p, W, H, amount) {
     shutter.querySelector("span").textContent = p === "ready" ? "✓" : "";
     $("#resetBtn").hidden = !(p === "aiming" || p === "ready");
     $("#target").hidden = p !== "aiming";
+    if (p !== "aiming" && p !== "ready") { $("#picker").hidden = true; tag.hidden = state.source !== "sample"; }
     updateAsk(); setReadout();
   }
   function startScan() {
@@ -793,30 +932,64 @@ function sharpen(p, W, H, amount) {
     await new Promise((r) => setTimeout(r, 0)); // let the screen update first
     const subjects = detectSubjects(ref);
     const a = aspect(), W = 72, H = Math.round(W / a);
-    state.box = findBestCrop(pixels(ref, W, H), W, H, subjects);
-    const main = subjects.find((s) => s.x >= state.box.x - 0.02 && s.x + s.w <= state.box.x + state.box.w + 0.02);
-    state.subject = main ? (main.kind === "face" ? "face" : main.kind) : "";
+    const small = pixels(ref, W, H), best = findBestCrop(small, W, H, subjects);
+    state.subjects = subjects;
+    state.options = (best.options || [best]).map((o) => ({ ...o, critic: critique(o, small, W, H, subjects, state.source === "live" ? state.tilt : null) }));
+    state.optIdx = best.bestIndex || 0;
     state.auto = chooseLook(pixels(ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
+    selectOption(state.optIdx, true);
     refreshLookChips(); applyPreviewLook();
+  }
+  // Pick one of the suggested shots (or your own drawn frame).
+  function selectOption(i, quiet) {
+    const o = state.options[i]; if (!o) return;
+    state.optIdx = i; state.box = { x: o.x, y: o.y, w: o.w, h: o.h, score: o.score };
+    state.critic = o.critic || null;
+    const main = state.subjects.find((s) => s.x >= o.x - 0.02 && s.x + s.w <= o.x + o.w + 0.02 && s.y >= o.y - 0.02 && s.y + s.h <= o.y + o.h + 0.02);
+    state.subject = main ? main.kind : "";
+    renderPicker();
+    if (state.source === "live" && state.phase === "aiming" && !quiet) {
+      buildTemplates(); state.track = null; state.trackIdx = null; state.alignedSince = 0; setZoom(null); drawTargetThumb();
+    }
+    if (!quiet && state.critic) showCritic();
+  }
+  function showCritic() {
+    const c = state.critic; if (!c) return;
+    const good = c.notes.filter((n) => n.ok).slice(0, 2).map((n) => n.text), bad = c.notes.filter((n) => !n.ok).slice(0, 1).map((n) => n.text);
+    setStatus(`Shot score ${c.score} · ` + [...good.map((t) => t + " ✓"), ...bad.map((t) => t + " ✗")].join(" · "));
+  }
+  function renderPicker() {
+    const wrap = $("#picker"), show = (state.phase === "aiming" || state.phase === "ready") && state.options.length > 1;
+    wrap.hidden = !show; tag.hidden = state.source !== "sample" || show;
+    if (!show) return;
+    wrap.textContent = "";
+    state.options.forEach((o, i) => {
+      const b = document.createElement("button"); b.setAttribute("aria-pressed", i === state.optIdx);
+      b.innerHTML = `${o.label}<small>${o.critic ? o.critic.score : ""}</small>`;
+      b.onclick = (e) => { e.stopPropagation(); selectOption(i); };
+      wrap.append(b);
+    });
+  }
+  function drawTargetThumb() {
+    const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
+    tc.width = 128; tc.height = Math.round(128 / aspect());
+    tc.getContext("2d").drawImage(state.ref, b.x * rw, b.y * rh, b.w * rw, b.h * rh, 0, 0, tc.width, tc.height);
+    tc.style.filter = LOOKS[lookKey()].css;
   }
   async function finishScan() {
     if (state.source === "live") {
       if (!state.analyzing) state.analyzing = analyzeRef(video).then(buildTemplates);
       await state.analyzing;
       if (state.phase !== "scanning") return; // cancelled meanwhile
-      const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
-      tc.width = 128; tc.height = Math.round(128 / aspect());
-      tc.getContext("2d").drawImage(state.ref, b.x * rw, b.y * rh, b.w * rw, b.h * rh, 0, 0, tc.width, tc.height);
-      tc.style.filter = LOOKS[lookKey()].css;
+      drawTargetThumb();
       state.alignedSince = 0; state.lostSince = 0;
-      setPhase("aiming");
-      setStatus("Move your phone until the crosshair sits in the AIM HERE ring. It shoots when you line up.");
+      setPhase("aiming"); renderPicker(); showCritic();
     } else {
       await state.analyzing;
       if (state.phase !== "scanning") return;
-      setPhase("ready");
+      setPhase("ready"); renderPicker();
       hint.innerHTML = "Shot <b>found</b> · tap ✓";
-      setStatus(askAvailable ? "Tap ✓ to develop it, or ask Claude for its own framing." : "Tap ✓ to develop the framed shot.");
+      showCritic();
     }
   }
 
@@ -873,7 +1046,7 @@ function sharpen(p, W, H, amount) {
     if (now - state.alignedSince > HOLD_MS) capture();
   }
 
-  /* ---------- developing (the "darkroom") ---------- */
+  /* ---------- burst capture: several frames merged into one cleaner photo ---------- */
   // Copy a canvas's pixels into a small grey array (for comparing frames quickly).
   function grayOf(c, w) { const h = Math.max(8, Math.round(w * c.height / c.width)); return { G: toGray(pixels(c, w, h), w * h), W: w, H: h }; }
   const nextFrame = () => new Promise((r) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => r()) : setTimeout(r, 34)));
@@ -882,10 +1055,11 @@ function sharpen(p, W, H, amount) {
   async function burstMerge(n = 6) {
     const frames = [];
     for (let i = 0; i < n; i++) { await nextFrame(); frames.push(freeze(video, 4096)); }
+    const raw = document.createElement("canvas"); raw.width = frames[0].width; raw.height = frames[0].height; raw.getContext("2d").drawImage(frames[0], 0, 0);
     const scored = frames.map((c) => { const g = grayOf(c, 320); return { c, s: sharpness(g.G, g.W, g.H) }; }).sort((a, b) => b.s - a.s);
     const keep = scored.filter((f) => f.s >= scored[0].s * 0.6).slice(0, 4).map((f) => f.c);
     const ref = keep[0], W = ref.width, H = ref.height;
-    if (keep.length === 1) return { base: ref, used: 1 };
+    if (keep.length === 1) return { base: ref, used: 1, raw };
     const r8 = grayOf(ref, Math.round(W / 8)), r2 = grayOf(ref, Math.round(W / 2));
     const shifts = [[0, 0]];
     for (const c of keep.slice(1)) {
@@ -897,11 +1071,99 @@ function sharpen(p, W, H, amount) {
     const merged = mergeFrames(datas, shifts, W, H);
     const out = document.createElement("canvas"); out.width = W; out.height = H;
     out.getContext("2d").putImageData(new ImageData(merged, W, H), 0, 0);
-    return { base: out, used: keep.length };
+    return { base: out, used: keep.length, raw };
   }
   function sharpenCanvas(c, amount) {
     const x = c.getContext("2d"), img = x.getImageData(0, 0, c.width, c.height);
     sharpen(img.data, c.width, c.height, amount); x.putImageData(img, 0, 0); return c;
+  }
+
+  /* ---------- portrait blur ---------- */
+  // The free AI outlines people; everything outside the outline gets a soft lens-like blur.
+  function personMask(base) {
+    if (!ai.seg) return null;
+    try {
+      const mw = 256, mh = Math.round(256 * base.height / base.width), sc = document.createElement("canvas");
+      sc.width = mw; sc.height = mh; sc.getContext("2d").drawImage(base, 0, 0, mw, mh);
+      const res = ai.seg.segment(sc), masks = res.confidenceMasks || [];
+      const m = masks.length > 1 ? masks[1] : masks[0]; if (!m) { res.close?.(); return null; }
+      const f = m.getAsFloat32Array(), W = m.width, H = m.height;
+      let cover = 0; for (let i = 0; i < f.length; i++) cover += f[i]; cover /= f.length;
+      const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
+      const mx = mc.getContext("2d"), id = mx.createImageData(W, H);
+      for (let i = 0; i < f.length; i++) { id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = 255; id.data[i * 4 + 3] = Math.max(0, Math.min(255, (f[i] - 0.15) * 1.6 * 255)); }
+      mx.putImageData(id, 0, 0); res.close?.();
+      return cover > 0.03 && cover < 0.9 ? mc : null; // no person, or the person fills everything
+    } catch (e) { return null; }
+  }
+  function portraitBlur(base, mask) {
+    const w = base.width, h = base.height, x = base.getContext("2d");
+    // blur = shrink a lot, then enlarge smoothly (twice, for a rounder, lens-like softness)
+    const blur = document.createElement("canvas"); blur.width = w; blur.height = h;
+    const s1 = document.createElement("canvas"); s1.width = Math.max(8, Math.round(w / 14)); s1.height = Math.max(8, Math.round(h / 14));
+    const s2 = document.createElement("canvas"); s2.width = Math.max(8, Math.round(w / 5)); s2.height = Math.max(8, Math.round(h / 5));
+    for (const c of [s1, s2, blur]) { const cx = c.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high"; }
+    s1.getContext("2d").drawImage(base, 0, 0, s1.width, s1.height);
+    s2.getContext("2d").drawImage(s1, 0, 0, s2.width, s2.height);
+    blur.getContext("2d").drawImage(s2, 0, 0, w, h);
+    const mk = document.createElement("canvas"); mk.width = w; mk.height = h;
+    const mx = mk.getContext("2d"); mx.imageSmoothingEnabled = true; mx.imageSmoothingQuality = "high"; mx.drawImage(mask, 0, 0, w, h);
+    const A = mx.getImageData(0, 0, w, h).data, S = x.getImageData(0, 0, w, h), B = blur.getContext("2d").getImageData(0, 0, w, h).data, p = S.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const a = A[i + 3] / 255; if (a >= 0.999) continue;
+      p[i] = p[i] * a + B[i] * (1 - a); p[i + 1] = p[i + 1] * a + B[i + 1] * (1 - a); p[i + 2] = p[i + 2] * a + B[i + 2] * (1 - a);
+    }
+    x.putImageData(S, 0, 0);
+  }
+
+  /* ---------- straighten (uses the level reading) ---------- */
+  function straighten(c, deg, crop) {
+    const w = c.width, h = c.height, s = straightenScale(w, h, deg), out = document.createElement("canvas"); out.width = w; out.height = h;
+    const x = out.getContext("2d"); x.imageSmoothingQuality = "high";
+    x.translate(w / 2, h / 2); x.rotate(deg * Math.PI / 180); x.scale(s, s); x.drawImage(c, -w / 2, -h / 2);
+    if (!crop) return { canvas: out, crop };
+    const [cx, cy] = rotatePoint((crop.x + crop.w / 2) * w, (crop.y + crop.h / 2) * h, w, h, deg, s);
+    const nw = Math.min(1, crop.w * s), nh = Math.min(1, crop.h * s);
+    return { canvas: out, crop: { ...crop, x: cx / w - nw / 2, y: cy / h - nh / 2, w: nw, h: nh } };
+  }
+
+  /* ---------- borders ---------- */
+  const BORDERS = { none: "None", white: "White", paper: "Paper", black: "Black", film: "Film", caption: "Caption" };
+  function addBorder(img, style, meta) {
+    if (style === "none") return img;
+    const w = img.width, h = img.height, u = Math.min(w, h);
+    let L = 0, T = 0, R = 0, B = 0, bg = "#ffffff";
+    if (style === "white") { L = T = R = B = u * 0.05; }
+    if (style === "paper") { L = T = R = u * 0.06; B = u * 0.17; bg = "#f2ede3"; }
+    if (style === "black") { L = T = R = B = u * 0.04; bg = "#0b0b0c"; }
+    if (style === "film") { L = R = u * 0.035; T = B = u * 0.11; bg = "#100d0b"; }
+    if (style === "caption") { L = T = R = u * 0.05; B = u * 0.13; }
+    const c = document.createElement("canvas"); c.width = Math.round(w + L + R); c.height = Math.round(h + T + B);
+    const x = c.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height);
+    if (style === "paper") {
+      const g = x.getImageData(0, 0, c.width, c.height), q = g.data;
+      for (let i = 0; i < q.length; i += 4) { const n = (Math.random() - 0.5) * 10; q[i] += n; q[i + 1] += n; q[i + 2] += n; }
+      x.putImageData(g, 0, 0);
+      x.shadowColor = "rgba(0,0,0,.25)"; x.shadowBlur = u * 0.01;
+    }
+    x.drawImage(img, L, T); x.shadowColor = "transparent"; x.shadowBlur = 0;
+    const mono = (px) => `500 ${Math.round(px)}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
+    if (style === "film") {
+      x.fillStyle = "rgba(225,215,195,.85)";
+      const holeW = u * 0.035, holeH = T * 0.32, step = holeW * 2.1;
+      for (let px = step / 2; px < c.width - holeW; px += step) for (const py of [T * 0.14, c.height - T * 0.14 - holeH]) {
+        x.beginPath(); if (x.roundRect) x.roundRect(px, py, holeW, holeH, holeW * 0.2); else x.rect(px, py, holeW, holeH); x.fill();
+      }
+      x.fillStyle = "#f08a3c"; x.font = mono(T * 0.2); x.textBaseline = "middle";
+      x.textAlign = "left"; x.fillText("THIRDS 400", L, T * 0.7);
+      x.textAlign = "right"; x.fillText(`${meta.frame}  ▸ ${meta.frame}A`, c.width - R, c.height - T * 0.7);
+    }
+    if (style === "caption" || style === "paper") {
+      x.fillStyle = style === "paper" ? "#4a443b" : "#2a2a2a"; x.textBaseline = "middle";
+      x.font = mono(B * (style === "paper" ? 0.16 : 0.22)); x.textAlign = "left";
+      x.fillText(meta.line, L, T + h + B * 0.5);
+    }
+    return c;
   }
 
   /* ---------- developing (the "darkroom") ---------- */
@@ -909,6 +1171,7 @@ function sharpen(p, W, H, amount) {
     const w = src.width, h = src.height, base = document.createElement("canvas"); base.width = w; base.height = h;
     const bx = base.getContext("2d"); bx.drawImage(src, 0, 0);
     const P = LOOK_PARAMS[key];
+    if (state.portrait && state.lastMask) portraitBlur(base, state.lastMask);
     const img = bx.getImageData(0, 0, w, h), p = img.data, n = w * h;
     const [lr, lg, lb] = buildLUTs(p, n, P), sat = P.sat, gr = P.grain * 0.7;
     for (let i = 0; i < p.length; i += 4) {
@@ -964,21 +1227,47 @@ function sharpen(p, W, H, amount) {
   const pause = () => new Promise((r) => setTimeout(r, 30));
 
   // Develop the stored base photo with a look and show it (also used when you switch looks afterwards).
+  // The "original": just the crop, no look, no blur, no sharpening, no border — for comparing.
+  function plainCrop(src, crop) {
+    const w = src.width, h = src.height;
+    let cx = 0, cy = 0, cw = w, ch = h;
+    if (crop) {
+      const x0 = Math.max(0, crop.x), y0 = Math.max(0, crop.y), x1 = Math.min(1, crop.x + crop.w), y1 = Math.min(1, crop.y + crop.h);
+      if (x1 - x0 < 0.97 || y1 - y0 < 0.97) { cx = x0 * w; cy = y0 * h; cw = (x1 - x0) * w; ch = (y1 - y0) * h; }
+    }
+    const up = Math.max(1, 2048 / Math.max(cw, ch)), c = document.createElement("canvas");
+    c.width = Math.round(cw * up); c.height = Math.round(ch * up);
+    const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(src, cx, cy, cw, ch, 0, 0, c.width, c.height);
+    return c;
+  }
+  // Develop the stored photo with a look (also used when you switch looks or portrait blur afterwards).
   async function renderShot(key) {
     state.lastKey = key;
-    const { full, framed } = develop(state.lastBase, state.lastCrop, key);
-    const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
-    const old = state.lastShot;
-    state.lastShot = { ...(old || {}), framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb),
-      size: `${framed.width}×${framed.height}`,
-      look: LOOKS[key].label + (state.look === "auto" && state.auto && key === state.auto.look ? ` · auto for ${state.auto.why}` : "") };
-    if (old) { URL.revokeObjectURL(old.framedUrl); URL.revokeObjectURL(old.fullUrl); }
-    $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
+    const dev = develop(state.lastBase, state.lastCrop, key);
+    state.dev = { framed: dev.framed, full: dev.full };
+    await encodeShot();
   }
-  async function finishShot(base, crop, note) {
-    state.lastBase = base; state.lastCrop = crop;
-    state.lastShot = { tip: state.claudeTip, subject: state.subject, note };
+  // Add the border and turn the original + edited photos into JPEG files (fast — used when only the border or view changes).
+  async function encodeShot() {
+    const key = state.lastKey, view = state.view, d = new Date(), pad = (k) => String(k).padStart(2, "0");
+    const meta = { frame: (d.getMinutes() % 36) + 1, line: [`'${pad(d.getFullYear() % 100)}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`, LOOKS[key].label.toUpperCase(), state.lastShot?.subject?.toUpperCase(), state.lastShot?.zoomTxt].filter(Boolean).join("  ·  ") };
+    const edited = addBorder(state.dev[view], state.border, meta), orig = state.orig[view];
+    const [eb, ob] = await Promise.all([toBlob(edited), toBlob(orig)]);
+    const old = state.lastShot || {};
+    if (old.editUrl) URL.revokeObjectURL(old.editUrl); if (old.origUrl) URL.revokeObjectURL(old.origUrl);
+    state.lastShot = { ...old, edit: eb, orig: ob, editUrl: URL.createObjectURL(eb), origUrl: URL.createObjectURL(ob),
+      size: `${edited.width}×${edited.height}`,
+      look: LOOKS[key].label + (state.look === "auto" && state.auto && key === state.auto.look ? ` · auto for ${state.auto.why}` : "") };
+    if (view === "framed") { $("#thumb").style.backgroundImage = `url(${state.lastShot.editUrl})`; $("#thumb").disabled = false; }
+  }
+  async function finishShot(base, crop, note, raw, rawCrop) {
+    state.lastBase = base; state.lastCrop = crop; state.view = "framed";
+    state.orig = { framed: plainCrop(raw || base, rawCrop === undefined ? crop : rawCrop), full: plainCrop(raw || base, null) };
+    state.lastShot = { tip: state.claudeTip, subject: state.subject, note, critic: state.critic,
+      zoomTxt: state.source === "live" ? `${(state.zoom * (crop ? 1 / Math.max(crop.w, crop.h) : 1)).toFixed(1)}×` : "" };
     setStatus("Developing…"); await pause();
+    state.lastMask = personMask(base);
+    state.portrait = !!state.lastMask;
     await renderShot(lookKey());
     resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
   }
@@ -990,11 +1279,15 @@ function sharpen(p, W, H, amount) {
       if (state.source === "live") {
         const crop = state.track && state.track.score > 0.65 ? { ...state.track } : null;
         setStatus("Hold still · merging frames…"); await pause();
-        const { base, used } = await burstMerge(6);
+        const tilt = state.tilt;
+        let { base, used, raw } = await burstMerge(6);
         sharpenCanvas(base, 0.6);
-        await finishShot(base, crop, `${used} frames merged`);
+        let note = `${used} frames merged`, c2 = crop;
+        if (tilt != null && Math.abs(tilt) > 0.4 && Math.abs(tilt) < 8) { const r = straighten(base, tilt, crop); base = r.canvas; c2 = r.crop; note += ` · straightened ${Math.abs(tilt).toFixed(1)}°`; }
+        await finishShot(base, c2, note, raw, crop);
       } else {
-        await finishShot(sharpenCanvas(freeze(state.ref, 4096), 0.25), state.box, "");
+        const raw = freeze(state.ref, 4096);
+        await finishShot(sharpenCanvas(freeze(state.ref, 4096), 0.25), state.box, "", raw, state.box);
       }
     } catch (e) { setStatus("Something went wrong developing that photo. Try again.", true); resetToIdle(); }
     finally { capturing = false; }
@@ -1030,8 +1323,8 @@ function sharpen(p, W, H, amount) {
         setStatus("Finding your shot in the HQ photo…"); await pause();
         const crop = findInPhoto(img, job);
         state.subject = job.subject;
-        const base = freeze(img, 4096); sharpenCanvas(base, 0.2);
-        await finishShot(base, crop, crop.score ? "HQ photo" : "HQ photo · framing estimated");
+        const raw = freeze(img, 4096), base = freeze(img, 4096); sharpenCanvas(base, 0.2);
+        await finishShot(base, crop, crop.score ? "HQ photo" : "HQ photo · framing estimated", raw, crop);
       } catch (err) { setStatus("Couldn't develop the HQ photo. Try again.", true); }
       URL.revokeObjectURL(img.src);
     };
@@ -1045,41 +1338,104 @@ function sharpen(p, W, H, amount) {
   };
   try { if (localStorage.getItem("thirds-hq") === "1") { state.hq = true; $("#hqBtn").setAttribute("aria-pressed", "true"); } } catch (e) {}
 
-  /* ---------- result sheet ---------- */
+  /* ---------- result sheet: original vs edited ---------- */
   function openSheet() {
-    const s = state.lastShot; if (!s || !s.framedUrl) return;
-    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl;
+    const s = state.lastShot; if (!s || !s.editUrl) return;
+    $("#imgOrig").src = s.origUrl; $("#imgEdit").src = s.editUrl;
     $("#sheetLook").textContent = [s.look, s.subject, s.note, s.size].filter(Boolean).join(" · ");
     const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.textContent = "";
     if (s.tip) { const b = document.createElement("b"); b.textContent = "Claude's tip: "; tipEl.append(b, s.tip); }
+    const cr = $("#critic"); cr.textContent = ""; cr.hidden = !s.critic;
+    if (s.critic) {
+      const sc = document.createElement("div"); sc.className = "score"; sc.innerHTML = `<b>${s.critic.score}</b><span>shot score</span>`; cr.append(sc);
+      const ul = document.createElement("ul");
+      for (const n of s.critic.notes) { const li = document.createElement("li"); li.className = n.ok ? "ok" : "no"; li.textContent = (n.ok ? "✓ " : "✗ ") + n.text; ul.append(li); }
+      cr.append(ul);
+    }
     $("#sheetLooks").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.look === state.lastKey));
+    $("#sheetBorders").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.border === state.border));
+    $("#viewSeg").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === state.view));
+    const pb = $("#portraitBtn"); pb.hidden = !state.lastMask; pb.setAttribute("aria-pressed", state.portrait);
     $("#saveHelp").textContent = "Tap Save, or press and hold a photo and choose Save to Photos.";
     $("#sheet").hidden = false;
   }
-  (() => { // change the look after shooting
-    const wrap = $("#sheetLooks");
+  async function busy(work) {
+    const btns = $("#sheet").querySelectorAll(".sheet-card button:not(.done)");
+    btns.forEach((x) => (x.disabled = true)); $("#sheetLook").textContent = "Developing…"; await pause();
+    try { await work(); } finally { btns.forEach((x) => (x.disabled = false)); openSheet(); }
+  }
+  (() => {
+    const looks = $("#sheetLooks");
     for (const key of Object.keys(LOOKS)) {
       const b = document.createElement("button"); b.className = "look"; b.dataset.look = key; b.textContent = LOOKS[key].label;
-      b.onclick = async () => {
-        if (!state.lastBase || key === state.lastKey) return;
-        wrap.querySelectorAll("button").forEach((x) => (x.disabled = true));
-        $("#sheetLook").textContent = "Developing…"; await pause();
-        await renderShot(key); openSheet();
-        wrap.querySelectorAll("button").forEach((x) => (x.disabled = false));
-      };
-      wrap.append(b);
+      b.onclick = () => { if (state.lastBase && key !== state.lastKey) busy(() => renderShot(key)); };
+      looks.append(b);
     }
+    const borders = $("#sheetBorders");
+    for (const [key, name] of Object.entries(BORDERS)) {
+      const b = document.createElement("button"); b.className = "look"; b.dataset.border = key; b.textContent = name;
+      b.onclick = () => { if (state.dev && key !== state.border) { state.border = key; busy(encodeShot); } };
+      borders.append(b);
+    }
+    $("#portraitBtn").onclick = () => { if (!state.lastMask) return; state.portrait = !state.portrait; busy(() => renderShot(state.lastKey)); };
+    $("#viewSeg").querySelectorAll("button").forEach((b) => (b.onclick = () => { if (state.dev && b.dataset.view !== state.view) { state.view = b.dataset.view; busy(encodeShot); } }));
   })();
   $("#thumb").onclick = openSheet;
   $("#closeSheet").onclick = () => ($("#sheet").hidden = true);
   $("#sheet").onclick = (e) => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
   document.querySelectorAll("[data-save]").forEach((btn) => (btn.onclick = async () => {
     const which = btn.dataset.save, blob = state.lastShot?.[which]; if (!blob) return;
-    const file = new File([blob], `thirds-${which}-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const file = new File([blob], `thirds-${which === "orig" ? "original" : "edited"}-${Date.now()}.jpg`, { type: "image/jpeg" });
     try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; } }
     catch (e) { if (e?.name === "AbortError") return; }
     $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo, then choose Save to Photos.";
   }));
+
+  /* ---------- draw your own frame ---------- */
+  // Drag a box on the viewfinder. Thirds then guides you to it (live) or develops it (photo).
+  (() => {
+    let start = null;
+    const pos = (e) => { const r = vf.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };
+    const allowed = () => (state.source === "live" ? state.phase === "idle" || state.phase === "aiming" : state.phase === "idle" || state.phase === "ready");
+    vf.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button") || !allowed()) return;
+      start = pos(e); vf.setPointerCapture?.(e.pointerId);
+    });
+    vf.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      const [x, y] = pos(e), size = Math.max(Math.abs(x - start[0]), Math.abs(y - start[1])); // same shape as the photo
+      if (size < 0.06) { state.draft = null; return; }
+      const bx = x < start[0] ? start[0] - size : start[0], by = y < start[1] ? start[1] - size : start[1];
+      state.draft = { x: Math.max(0, Math.min(1 - size, bx)), y: Math.max(0, Math.min(1 - size, by)), w: Math.min(1, size), h: Math.min(1, size) };
+    });
+    const end = () => {
+      const d = state.draft; start = null; state.draft = null;
+      if (!d || d.w < 0.15 || !allowed()) return;
+      useOwnFrame(d);
+    };
+    vf.addEventListener("pointerup", end); vf.addEventListener("pointercancel", () => { start = null; state.draft = null; });
+  })();
+  function useOwnFrame(d) {
+    const live = state.source === "live";
+    if (live || !state.ref) state.ref = freeze(currentSrc());
+    const a = aspect(), W = 72, H = Math.round(W / a), small = pixels(state.ref, W, H);
+    if (live || !state.auto) state.auto = chooseLook(pixels(state.ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
+    if (live) state.subjects = [];
+    const mine = { ...d, label: "Yours" };
+    mine.critic = critique(mine, small, W, H, state.subjects || [], live ? state.tilt : null);
+    state.options = [...(state.options || []).filter((o) => o.label !== "Yours"), mine];
+    if (live) {
+      state.options = [mine];
+      selectOption(0, true); buildTemplates(); drawTargetThumb();
+      state.track = null; state.trackIdx = null; state.alignedSince = 0; setZoom(null);
+      setPhase("aiming"); renderPicker(); showCritic();
+    } else {
+      selectOption(state.options.length - 1, true);
+      setPhase("ready"); renderPicker(); showStill(); showCritic();
+      hint.innerHTML = "Your <b>frame</b> · tap ✓";
+    }
+    refreshLookChips(); applyPreviewLook();
+  }
 
   /* ---------- cameras and zoom ---------- */
   function setReadout() {
@@ -1094,6 +1450,7 @@ function sharpen(p, W, H, amount) {
   function resetToIdle() {
     clearInterval(state.scanTimer);
     state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0; state.analyzing = null; motion.atMatch = null;
+    state.options = []; state.subjects = []; state.critic = null; state.draft = null;
     setPhase("idle"); setZoom(null);
     if (state.source === "live") { video.hidden = false; still.hidden = true; }
     else { video.hidden = true; still.hidden = false; showStill(); }
@@ -1259,6 +1616,8 @@ function sharpen(p, W, H, amount) {
       const s = Math.min(1, Math.max(0.35, Number(res?.size) || 0.75));
       const x = Math.min(1 - s, Math.max(0, Number(res?.x) || 0)), y = Math.min(1 - s, Math.max(0, Number(res?.y) || 0));
       state.box = { x, y, w: s, h: s, score: 1 };
+      state.options = [...state.options.filter((o) => o.label !== "Claude"), { ...state.box, label: "Claude", critic: null }];
+      state.optIdx = state.options.length - 1; state.critic = null; renderPicker();
       if (typeof res?.subject === "string") state.subject = res.subject.slice(0, 24);
       if (LOOKS[res?.look]) { state.auto = { look: res.look, why: "Claude's pick" }; refreshLookChips(); applyPreviewLook(); }
       state.claudeTip = typeof res?.tip === "string" ? res.tip.slice(0, 220) : "";

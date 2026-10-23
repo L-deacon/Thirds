@@ -708,7 +708,7 @@ function autoLevelsLUT(d, n) {
     const [a, b] = ASPECTS[state.aspectIdx];
     const src = { live: "Live", still: "Photo", sample: "Sample" }[state.source];
     const ph = { idle: "", scanning: " · Scanning", aiming: " · Aiming", ready: " · Found" }[state.phase];
-    readout.textContent = `${a}:${b} · ${src}${ph}`;
+    readout.textContent = `${a}:${b} · ${src}${ph} · v5`;
   }
   function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
   function resetToIdle() {

@@ -35,7 +35,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .brand h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
 .readout { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.toggles { display: flex; gap: 6px; flex: none; }
+.toggles { display: flex; gap: 5px; flex: none; }
+.tog#hqBtn[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .tog {
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
   background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--muted);
@@ -140,6 +141,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <button class="tog" id="aspectBtn" aria-label="Change photo shape">3:4</button>
       <button class="tog" id="gridBtn" aria-pressed="true">Grid</button>
       <button class="tog" id="dateBtn" aria-pressed="true">Date</button>
+      <button class="tog" id="hqBtn" aria-pressed="false" aria-label="HQ mode: take a full-quality iPhone photo">HQ</button>
     </div>
   </header>
 
@@ -154,6 +156,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <input type="file" id="photoInput" accept="image/*">
     </label>
   </div>
+
+  <input type="file" id="hqInput" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:0;top:0">
 
   <div class="stage" id="stage">
     <div class="vf" id="vf">
@@ -188,6 +192,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <button class="done" id="closeSheet">Done</button>
     </div>
     <p class="tip" id="sheetTip" hidden></p>
+    <div class="looks" id="sheetLooks" role="group" aria-label="Change the look"></div>
     <div class="shots">
       <figure><img id="imgFramed" alt="Framed shot"><figcaption>Framed shot</figcaption><button class="save" data-save="framed">Save</button></figure>
       <figure><img id="imgFull" alt="Full frame"><figcaption>Full frame</figcaption><button class="save" data-save="full">Save</button></figure>
@@ -434,6 +439,66 @@ function buildLUTs(d, n, P) {
   return luts;
 }
 
+// ---------- quality: burst merging and sharpening ----------
+
+// How sharp is a frame? Measures fine detail (variance of the Laplacian). Blurry/shaken frames score low.
+function sharpness(G, W, H) {
+  let s = 0, s2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x, l = 4 * G[i] - G[i - 1] - G[i + 1] - G[i - W] - G[i + W];
+    s += l; s2 += l * l; n++;
+  }
+  return n ? s2 / n - (s / n) * (s / n) : 0;
+}
+
+// How far has frame B slid compared with frame A? Tries every small shift around a guess
+// and keeps the one where the two grey images differ least. Returns [dx, dy] so that B(x+dx, y+dy) ≈ A(x, y).
+function estimateShift(A, B, W, H, R, gx = 0, gy = 0) {
+  const m = R + Math.max(Math.abs(gx), Math.abs(gy)) + 1;
+  let best = [gx, gy], bestErr = Infinity;
+  for (let dy = gy - R; dy <= gy + R; dy++) for (let dx = gx - R; dx <= gx + R; dx++) {
+    let err = 0, n = 0;
+    for (let y = m; y < H - m; y += 2) { const ra = y * W, rb = (y + dy) * W + dx; for (let x = m; x < W - m; x += 2) { err += Math.abs(A[ra + x] - B[rb + x]); n++; } }
+    err /= n || 1;
+    if (err < bestErr) { bestErr = err; best = [dx, dy]; }
+  }
+  return best;
+}
+
+// Average several lined-up frames to wash out noise (what phone cameras do in low light).
+// Where a frame disagrees a lot with the first one (something moved), keep the first frame's pixel to avoid ghosts.
+function mergeFrames(frames, shifts, W, H) {
+  const ref = frames[0], out = new Uint8ClampedArray(ref.length);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4, r0 = ref[i], g0 = ref[i + 1], b0 = ref[i + 2];
+    let r = r0, g = g0, b = b0, n = 1;
+    for (let k = 1; k < frames.length; k++) {
+      const sx = x + shifts[k][0], sy = y + shifts[k][1];
+      if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+      const f = frames[k], j = (sy * W + sx) * 4;
+      const dl = Math.abs(0.3 * (f[j] - r0) + 0.59 * (f[j + 1] - g0) + 0.11 * (f[j + 2] - b0));
+      if (dl > 26) continue;
+      r += f[j]; g += f[j + 1]; b += f[j + 2]; n++;
+    }
+    out[i] = r / n; out[i + 1] = g / n; out[i + 2] = b / n; out[i + 3] = 255;
+  }
+  return out;
+}
+
+// Unsharp mask: find the fine detail (picture minus a blurred copy) and add a bit more of it back.
+// Done on brightness only so colours don't fringe.
+function sharpen(p, W, H, amount) {
+  const N = W * H, L = new Float32Array(N), T = new Float32Array(N);
+  for (let i = 0; i < N; i++) L[i] = 0.299 * p[i * 4] + 0.587 * p[i * 4 + 1] + 0.114 * p[i * 4 + 2];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; T[i] = (L[i - (x > 0)] + L[i] + L[i + (x < W - 1)]) / 3; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, blur = (T[i - (y > 0) * W] + T[i] + T[i + (y < H - 1) * W]) / 3;
+    let d = (L[i] - blur) * amount;
+    d = Math.max(-40, Math.min(40, d)); // limit halos on strong edges
+    p[i * 4] += d; p[i * 4 + 1] += d; p[i * 4 + 2] += d;
+  }
+}
+
 /* ======================================================================
    The camera app
    ====================================================================== */
@@ -442,7 +507,7 @@ function buildLUTs(d, n, P) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v6";
+  const VERSION = "v7";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -465,6 +530,7 @@ function buildLUTs(d, n, P) {
     tpls: null, track: null, trackIdx: null, lastTrack: 0, alignedSince: 0, lostSince: 0,
     scanStart: 0, scanTimer: null, stream: null, lastShot: null, claudeTip: "",
     zoom: 1, lensKind: "wide", cams: { wide: null, ultra: null }, zoomed: false,
+    res: "", bestRes: {}, hq: false, lastBase: null, lastCrop: null, lastKey: "natural",
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
   const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
@@ -802,16 +868,49 @@ function buildLUTs(d, n, P) {
       return;
     }
     if (!state.alignedSince) { state.alignedSince = now; setZoom(t); }
+    if (state.hq) { hint.innerHTML = "<b>Locked</b> · tap shutter for HQ"; return; }
     hint.innerHTML = "<b>Locked</b> · hold steady";
     if (now - state.alignedSince > HOLD_MS) capture();
   }
 
   /* ---------- developing (the "darkroom") ---------- */
-  function develop(src, crop) {
-    const base = freeze(src, 3000), w = base.width, h = base.height, bx = base.getContext("2d");
-    const key = lookKey(), P = LOOK_PARAMS[key];
+  // Copy a canvas's pixels into a small grey array (for comparing frames quickly).
+  function grayOf(c, w) { const h = Math.max(8, Math.round(w * c.height / c.width)); return { G: toGray(pixels(c, w, h), w * h), W: w, H: h }; }
+  const nextFrame = () => new Promise((r) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => r()) : setTimeout(r, 34)));
+
+  // Take a quick burst, throw away shaky frames, line the rest up and average them.
+  async function burstMerge(n = 6) {
+    const frames = [];
+    for (let i = 0; i < n; i++) { await nextFrame(); frames.push(freeze(video, 4096)); }
+    const scored = frames.map((c) => { const g = grayOf(c, 320); return { c, s: sharpness(g.G, g.W, g.H) }; }).sort((a, b) => b.s - a.s);
+    const keep = scored.filter((f) => f.s >= scored[0].s * 0.6).slice(0, 4).map((f) => f.c);
+    const ref = keep[0], W = ref.width, H = ref.height;
+    if (keep.length === 1) return { base: ref, used: 1 };
+    const r8 = grayOf(ref, Math.round(W / 8)), r2 = grayOf(ref, Math.round(W / 2));
+    const shifts = [[0, 0]];
+    for (const c of keep.slice(1)) {
+      const g8 = grayOf(c, r8.W), [cx, cy] = estimateShift(r8.G, g8.G, r8.W, r8.H, 5);
+      const g2 = grayOf(c, r2.W), [fx, fy] = estimateShift(r2.G, g2.G, r2.W, r2.H, 2, cx * 4, cy * 4);
+      shifts.push([fx * 2, fy * 2]);
+    }
+    const datas = keep.map((c) => c.getContext("2d").getImageData(0, 0, W, H).data);
+    const merged = mergeFrames(datas, shifts, W, H);
+    const out = document.createElement("canvas"); out.width = W; out.height = H;
+    out.getContext("2d").putImageData(new ImageData(merged, W, H), 0, 0);
+    return { base: out, used: keep.length };
+  }
+  function sharpenCanvas(c, amount) {
+    const x = c.getContext("2d"), img = x.getImageData(0, 0, c.width, c.height);
+    sharpen(img.data, c.width, c.height, amount); x.putImageData(img, 0, 0); return c;
+  }
+
+  /* ---------- developing (the "darkroom") ---------- */
+  function develop(src, crop, key) {
+    const w = src.width, h = src.height, base = document.createElement("canvas"); base.width = w; base.height = h;
+    const bx = base.getContext("2d"); bx.drawImage(src, 0, 0);
+    const P = LOOK_PARAMS[key];
     const img = bx.getImageData(0, 0, w, h), p = img.data, n = w * h;
-    const [lr, lg, lb] = buildLUTs(p, n, P), sat = P.sat, gr = P.grain;
+    const [lr, lg, lb] = buildLUTs(p, n, P), sat = P.sat, gr = P.grain * 0.7;
     for (let i = 0; i < p.length; i += 4) {
       let r = lr[p[i]], g = lg[p[i + 1]], b = lb[p[i + 2]];
       const l = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -834,8 +933,12 @@ function buildLUTs(d, n, P) {
       bx.drawImage(sc, 0, 0, w, h); bx.restore();
     }
     const out = (cx, cy, cw, ch) => {
-      const c = document.createElement("canvas"); c.width = Math.round(cw); c.height = Math.round(ch);
-      const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
+      // small crops (from zooming) are enlarged to at least 2048 px so they look good on a phone screen
+      const up = Math.max(1, 2048 / Math.max(cw, ch));
+      const c = document.createElement("canvas"); c.width = Math.round(cw * up); c.height = Math.round(ch * up);
+      const x = c.getContext("2d"); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
+      if (up > 1.15) sharpenCanvas(c, 0.35);
       const v = x.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * 0.35, c.width / 2, c.height / 2, Math.hypot(c.width, c.height) / 2);
       v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${P.vignette})`);
       x.fillStyle = v; x.fillRect(0, 0, c.width, c.height);
@@ -857,36 +960,116 @@ function buildLUTs(d, n, P) {
     }
     return { full, framed };
   }
-  const toBlob = (c) => new Promise((res) => c.toBlob(res, "image/jpeg", 0.92));
+  const toBlob = (c) => new Promise((res) => c.toBlob(res, "image/jpeg", 0.95));
+  const pause = () => new Promise((r) => setTimeout(r, 30));
+
+  // Develop the stored base photo with a look and show it (also used when you switch looks afterwards).
+  async function renderShot(key) {
+    state.lastKey = key;
+    const { full, framed } = develop(state.lastBase, state.lastCrop, key);
+    const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
+    const old = state.lastShot;
+    state.lastShot = { ...(old || {}), framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb),
+      size: `${framed.width}×${framed.height}`,
+      look: LOOKS[key].label + (state.look === "auto" && state.auto && key === state.auto.look ? ` · auto for ${state.auto.why}` : "") };
+    if (old) { URL.revokeObjectURL(old.framedUrl); URL.revokeObjectURL(old.fullUrl); }
+    $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
+  }
+  async function finishShot(base, crop, note) {
+    state.lastBase = base; state.lastCrop = crop;
+    state.lastShot = { tip: state.claudeTip, subject: state.subject, note };
+    setStatus("Developing…"); await pause();
+    await renderShot(lookKey());
+    resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
+  }
   let capturing = false;
   async function capture() {
     if (capturing) return; capturing = true;
     try {
-      const live = state.source === "live";
-      const src = live ? video : state.ref;
-      const crop = live ? (state.track && state.track.score > 0.65 ? state.track : null) : state.box;
       vf.animate?.([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240 });
-      setStatus("Developing…");
-      await new Promise((r) => setTimeout(r, 30));
-      const { full, framed } = develop(src, crop);
-      const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
-      if (state.lastShot) { URL.revokeObjectURL(state.lastShot.framedUrl); URL.revokeObjectURL(state.lastShot.fullUrl); }
-      state.lastShot = { framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb), tip: state.claudeTip,
-        look: LOOKS[lookKey()].label + (state.look === "auto" && state.auto ? ` · auto for ${state.auto.why}` : "") + (state.subject ? ` · ${state.subject}` : "") };
-      $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
-      resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
-    } finally { capturing = false; }
+      if (state.source === "live") {
+        const crop = state.track && state.track.score > 0.65 ? { ...state.track } : null;
+        setStatus("Hold still · merging frames…"); await pause();
+        const { base, used } = await burstMerge(6);
+        sharpenCanvas(base, 0.6);
+        await finishShot(base, crop, `${used} frames merged`);
+      } else {
+        await finishShot(sharpenCanvas(freeze(state.ref, 4096), 0.25), state.box, "");
+      }
+    } catch (e) { setStatus("Something went wrong developing that photo. Try again.", true); resetToIdle(); }
+    finally { capturing = false; }
   }
+
+  /* ---------- HQ mode: a real full-quality iPhone photo, framed by Thirds ---------- */
+  function openHQ() {
+    if (!state.ref || !state.box) return;
+    state.hqPending = { ref: state.ref, box: { ...state.box }, zoom: state.zoom, lens: state.lensKind, subject: state.subject };
+    $("#hqInput").click();
+  }
+  // Find the target inside the full photo by matching the scan picture at many sizes.
+  function findInPhoto(img, job) {
+    const PW = 120, PH = Math.round(PW / aspect());
+    const G = toGray(pixels(img, PW, PH), PW * PH);
+    const expect = job.lens === "ultra" ? job.box.w * 2 : job.box.w / job.zoom; // the iPhone camera opens at 1×
+    const tpls = [];
+    for (let s = Math.max(0.08, expect * 0.55); s <= Math.min(1, expect * 1.8); s *= 1.1) {
+      const tw = Math.round(PW * s), th = Math.round(PH * s); if (tw < 8 || th < 8 || tw > PW || th > PH) continue;
+      tpls.push(makeTemplate(toGray(pixels(job.ref, tw, th, job.box), tw * th), tw, th));
+    }
+    const m = tpls.length ? matchTemplates(G, PW, PH, tpls, null) : null;
+    if (m && m.score > 0.5) return m;
+    const e = Math.min(1, expect); // fallback: same framing, centred
+    return { x: (1 - e) / 2, y: (1 - e) / 2, w: e, h: e, score: 0 };
+  }
+  $("#hqInput").onchange = (e) => {
+    const f = e.target.files?.[0], job = state.hqPending; e.target.value = "";
+    if (!f || !job) return;
+    const img = new Image();
+    img.onload = async () => {
+      try {
+        setStatus("Finding your shot in the HQ photo…"); await pause();
+        const crop = findInPhoto(img, job);
+        state.subject = job.subject;
+        const base = freeze(img, 4096); sharpenCanvas(base, 0.2);
+        await finishShot(base, crop, crop.score ? "HQ photo" : "HQ photo · framing estimated");
+      } catch (err) { setStatus("Couldn't develop the HQ photo. Try again.", true); }
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => setStatus("That photo couldn't be opened.", true);
+    img.src = URL.createObjectURL(f);
+  };
+  $("#hqBtn").onclick = () => {
+    state.hq = !state.hq; $("#hqBtn").setAttribute("aria-pressed", state.hq);
+    try { localStorage.setItem("thirds-hq", state.hq ? "1" : "0"); } catch (e) {}
+    setStatus(state.hq ? "HQ on: after you line up, tap the shutter to take a full-quality iPhone photo." : "HQ off: Thirds shoots automatically when you line up.");
+  };
+  try { if (localStorage.getItem("thirds-hq") === "1") { state.hq = true; $("#hqBtn").setAttribute("aria-pressed", "true"); } } catch (e) {}
 
   /* ---------- result sheet ---------- */
   function openSheet() {
-    const s = state.lastShot; if (!s) return;
-    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl; $("#sheetLook").textContent = s.look;
+    const s = state.lastShot; if (!s || !s.framedUrl) return;
+    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl;
+    $("#sheetLook").textContent = [s.look, s.subject, s.note, s.size].filter(Boolean).join(" · ");
     const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.textContent = "";
     if (s.tip) { const b = document.createElement("b"); b.textContent = "Claude's tip: "; tipEl.append(b, s.tip); }
+    $("#sheetLooks").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.look === state.lastKey));
     $("#saveHelp").textContent = "Tap Save, or press and hold a photo and choose Save to Photos.";
     $("#sheet").hidden = false;
   }
+  (() => { // change the look after shooting
+    const wrap = $("#sheetLooks");
+    for (const key of Object.keys(LOOKS)) {
+      const b = document.createElement("button"); b.className = "look"; b.dataset.look = key; b.textContent = LOOKS[key].label;
+      b.onclick = async () => {
+        if (!state.lastBase || key === state.lastKey) return;
+        wrap.querySelectorAll("button").forEach((x) => (x.disabled = true));
+        $("#sheetLook").textContent = "Developing…"; await pause();
+        await renderShot(key); openSheet();
+        wrap.querySelectorAll("button").forEach((x) => (x.disabled = false));
+      };
+      wrap.append(b);
+    }
+  })();
   $("#thumb").onclick = openSheet;
   $("#closeSheet").onclick = () => ($("#sheet").hidden = true);
   $("#sheet").onclick = (e) => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
@@ -904,7 +1087,8 @@ function buildLUTs(d, n, P) {
     const src = { live: "Live", still: "Photo", sample: "Sample" }[state.source];
     const ph = { idle: "", scanning: " · Scanning", aiming: " · Aiming", ready: " · Found" }[state.phase];
     const aiTxt = { off: "", loading: " · AI…", ready: " · AI", failed: " · Basic" }[ai.status];
-    readout.textContent = `${a}:${b} · ${src}${ph}${aiTxt} · ${VERSION}`;
+    const res = state.source === "live" && state.res ? ` · ${state.res}` : "";
+    readout.textContent = `${a}:${b} · ${src}${ph}${res}${aiTxt} · ${VERSION}`;
   }
   function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
   function resetToIdle() {
@@ -933,13 +1117,30 @@ function buildLUTs(d, n, P) {
         || list.find((d) => /back|rear|environment/i.test(d.label) && !/ultra|tele|dual|triple/i.test(d.label))?.deviceId || null;
     } catch (e) { /* fall back to the default back camera */ }
   }
+  // Ask the camera for its biggest picture. iPhones answer differently, so try a few sizes once and keep the best.
+  const LADDER = [{ width: { ideal: 4032 }, height: { ideal: 3024 } }, { width: { ideal: 3840 }, height: { ideal: 2160 } }, { width: { ideal: 1920 }, height: { ideal: 1440 } }];
+  function usableArea(w, h) { const a = aspect(); const cw = Math.min(w, h * a); return cw * (cw / a); }
   async function openCamera(kind) {
-    const v = { width: { ideal: 4032 }, height: { ideal: 3024 }, frameRate: { ideal: 30 } };
     const id = kind === "ultra" ? state.cams.ultra : state.cams.wide;
-    if (id) v.deviceId = { exact: id }; else v.facingMode = { ideal: "environment" };
-    if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
-    const s = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
-    state.stream = s; video.srcObject = s; await video.play(); state.lensKind = kind;
+    const pick = id ? { deviceId: { exact: id } } : { facingMode: { ideal: "environment" } };
+    const tryOpen = async (c) => {
+      if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+      const s = await navigator.mediaDevices.getUserMedia({ video: { ...pick, ...c, frameRate: { ideal: 30 } }, audio: false });
+      state.stream = s; video.srcObject = s; await video.play();
+      for (let i = 0; i < 20 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 50));
+      return [video.videoWidth, video.videoHeight];
+    };
+    if (state.bestRes[kind] == null) {
+      let best = -1, bi = 0;
+      for (let i = 0; i < LADDER.length; i++) {
+        try { const [w, h] = await tryOpen(LADDER[i]); const a = usableArea(w, h); if (a > best + 1) { best = a; bi = i; } } catch (e) {}
+      }
+      state.bestRes[kind] = bi;
+    }
+    const [w, h] = await tryOpen(LADDER[state.bestRes[kind]]);
+    state.lensKind = kind;
+    state.res = `${((usableArea(w, h)) / 1e6).toFixed(1)}MP`;
+    setReadout();
   }
   function buildZooms() {
     const wrap = $("#zooms"); wrap.textContent = "";
@@ -972,9 +1173,11 @@ function buildLUTs(d, n, P) {
     enableMotion(); // asks for motion access while we still have your tap
     if (!navigator.mediaDevices?.getUserMedia) return cameraBlocked();
     try {
-      await openCamera("wide");
+      const s0 = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      s0.getTracks().forEach((t) => t.stop()); // first ask permission, so the lens names become visible
       await findLenses();
-      if (state.cams.wide) await openCamera("wide"); // re-open the plain 1× lens by name now that we know it
+      setStatus("Finding your camera's best resolution…");
+      await openCamera("wide");
       state.source = "live"; tag.hidden = true; $("#camLabel").textContent = "Camera on";
       state.zoom = 1; setLensZoom(); buildZooms(); $("#zooms").hidden = false; vf.classList.add("has-zoom");
       resetToIdle();
@@ -1021,6 +1224,7 @@ function buildLUTs(d, n, P) {
   };
   shutter.onclick = () => {
     if (state.phase === "idle") startScan();
+    else if (state.phase === "aiming" && state.hq) openHQ();
     else if (state.phase === "aiming" || state.phase === "ready") capture();
   };
   $("#resetBtn").onclick = () => { state.ref = null; resetToIdle(); setStatus("Press the shutter to scan again."); };

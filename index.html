@@ -34,8 +34,8 @@ button:focus-visible, label:focus-within { outline: 2px solid var(--accent); out
 header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .brand h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
-.readout { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
-.toggles { display: flex; gap: 6px; }
+.readout { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toggles { display: flex; gap: 6px; flex: none; }
 .tog {
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
   background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--muted);
@@ -44,7 +44,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 
 .sources { display: flex; gap: 8px; }
 .src {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  position: relative; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 500;
 }
 .src input { position: absolute; width: 1px; height: 1px; opacity: 0; }
@@ -55,18 +55,22 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .vf canvas.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .hint {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px);
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px);
   font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
-  background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg);
-  padding: 6px 12px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--void) 72%, transparent); color: var(--fg);
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hint b { color: var(--accent); font-weight: 500; }
 .tag {
-  position: absolute; left: 12px; bottom: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  position: absolute; left: 12px; top: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); background: color-mix(in srgb, var(--void) 70%, transparent); padding: 4px 8px; border-radius: 6px;
 }
+.target { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.target canvas { width: 64px; border: 2px solid var(--accent); border-radius: 8px; display: block; background: var(--void); }
+.target span { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg);
+  background: color-mix(in srgb, var(--void) 70%, transparent); padding: 2px 6px; border-radius: 4px; }
 
-.status { min-height: 18px; font-size: 13px; color: var(--muted); text-align: center; line-height: 1.4; }
+.status { min-height: 18px; margin: 0; font-size: 13px; color: var(--muted); text-align: center; line-height: 1.4; }
 .status.warn { color: var(--stamp); }
 
 .looks { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
@@ -79,16 +83,18 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding-bottom: 4px; }
 .thumb { justify-self: start; width: 52px; height: 52px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel) center/cover no-repeat; padding: 0; }
 .thumb:disabled { opacity: 0.4; cursor: default; }
-.shutter { width: 76px; height: 76px; border-radius: 50%; border: 3px solid var(--fg); background: transparent; padding: 5px; }
-.shutter span { display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--fg); transition: transform 0.12s; }
+.shutter { position: relative; width: 76px; height: 76px; border-radius: 50%; border: 3px solid var(--fg); background: transparent; padding: 5px; }
+.shutter span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--fg); transition: transform 0.12s, background 0.2s;
+  font-size: 22px; color: var(--accent-ink); }
 .shutter:active span { transform: scale(0.9); }
+.shutter[data-phase="aiming"] span { background: var(--accent); }
+.shutter[data-phase="scanning"] { opacity: 0.6; }
 .side { justify-self: end; display: flex; gap: 8px; }
 .round {
   display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; border: none; padding: 0;
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
 }
 .round i { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); font-style: normal; font-size: 18px; color: var(--fg); }
-.round[aria-pressed="true"] i { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .round:disabled { opacity: 0.4; cursor: default; }
 .round.busy i { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.4; } }
@@ -99,9 +105,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   display: flex; flex-direction: column; gap: 14px; max-height: 92%; overflow-y: auto;
 }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sheet-head h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 24px; }
-.done { background: var(--fg); color: var(--bg); border: none; border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 14px; }
+.sheet-head small { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.done { background: var(--fg); color: var(--bg); border: none; border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 14px; flex: none; }
 .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .shots figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .shots img { width: 100%; max-height: 42vh; object-fit: contain; background: var(--void); border-radius: 10px; -webkit-user-select: auto; user-select: auto; -webkit-touch-callout: default; }
@@ -144,42 +151,193 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <video id="video" playsinline muted autoplay hidden></video>
       <canvas class="still" id="still"></canvas>
       <canvas class="overlay" id="overlay"></canvas>
-      <div class="hint" id="hint">Sample scene</div>
       <div class="tag" id="tag">Sample · not your photo</div>
+      <div class="target" id="target" hidden><canvas id="targetThumb"></canvas><span>Target</span></div>
+      <div class="hint" id="hint">Tap the shutter to <b>scan</b></div>
     </div>
   </div>
 
-  <p class="status" id="status" aria-live="polite">The yellow box is the shot Thirds found. Start the camera or pick a photo.</p>
+  <p class="status" id="status" aria-live="polite">Press the shutter to scan the scene. Thirds finds the best shot in 5 seconds.</p>
 
   <div class="looks" id="looks" role="group" aria-label="Film look"></div>
 
   <div class="controls">
     <button class="thumb" id="thumb" disabled aria-label="Open last photo"></button>
-    <button class="shutter" id="shutter" aria-label="Take photo"><span></span></button>
+    <button class="shutter" id="shutter" data-phase="idle" aria-label="Scan the scene"><span></span></button>
     <div class="side">
       <button class="round" id="askBtn" hidden aria-label="Ask Claude to frame this photo"><i>✎</i>Claude</button>
-      <button class="round" id="scoutBtn" aria-pressed="true" aria-label="Find the shot"><i>✦</i>Scout</button>
+      <button class="round" id="resetBtn" hidden aria-label="Start a new scan"><i>↺</i>Rescan</button>
     </div>
   </div>
 </div>
 
 <div class="sheet" id="sheet" hidden>
   <div class="sheet-card" role="dialog" aria-label="Your photos">
-    <div class="sheet-head"><h2>Developed</h2><button class="done" id="closeSheet">Done</button></div>
+    <div class="sheet-head">
+      <div><h2>Developed</h2><small id="sheetLook">Auto look</small></div>
+      <button class="done" id="closeSheet">Done</button>
+    </div>
     <p class="tip" id="sheetTip" hidden></p>
     <div class="shots">
-      <figure><img id="imgFramed" alt="Framed crop"><figcaption>Framed crop</figcaption><button class="save" data-save="framed">Save</button></figure>
-      <figure><img id="imgFull" alt="Full photo"><figcaption>Full frame</figcaption><button class="save" data-save="full">Save</button></figure>
+      <figure><img id="imgFramed" alt="Framed shot"><figcaption>Framed shot</figcaption><button class="save" data-save="framed">Save</button></figure>
+      <figure><img id="imgFull" alt="Full frame"><figcaption>Full frame</figcaption><button class="save" data-save="full">Save</button></figure>
     </div>
     <p class="savehelp" id="saveHelp">Tap Save, or press and hold a photo and choose Save to Photos.</p>
   </div>
 </div>
 
 <script>
+/* ======================================================================
+   Pure image maths (no page access) — easy to test on their own.
+   ====================================================================== */
+
+// Turn RGBA pixels into a grey brightness array.
+function toGray(d, n) {
+  const g = new Float32Array(n);
+  for (let i = 0; i < n; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  return g;
+}
+
+// Score every part of a small image for "interest" (edges + colour that stands out + saturation),
+// then try hundreds of crops and return the best one, as fractions of the frame.
+function findBestCrop(d, W, H) {
+  const N = W * H, L = toGray(d, N), S = new Float32Array(N);
+  let mr = 0, mg = 0, mb = 0;
+  for (let i = 0; i < N; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b); S[i] = mx ? (mx - mn) / mx : 0;
+    mr += r; mg += g; mb += b;
+  }
+  mr /= N; mg /= N; mb /= N;
+  const grad = new Float32Array(N), cd = new Float32Array(N); let gmax = 1e-6, cmax = 1e-6;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x;
+    grad[i] = Math.abs(L[i + 1] - L[i - 1]) + Math.abs(L[i + W] - L[i - W]);
+    const r = d[i * 4] - mr, g = d[i * 4 + 1] - mg, b = d[i * 4 + 2] - mb;
+    cd[i] = Math.sqrt(r * r + g * g + b * b);
+    if (grad[i] > gmax) gmax = grad[i]; if (cd[i] > cmax) cmax = cd[i];
+  }
+  const sal = new Float32Array(N);
+  for (let i = 0; i < N; i++) sal[i] = 0.45 * grad[i] / gmax + 0.4 * cd[i] / cmax + 0.15 * S[i];
+  for (let pass = 0; pass < 2; pass++) { // soften so we score regions, not single pixels
+    const t = new Float32Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let s = 0, n = 0; for (let k = -2; k <= 2; k++) { const xx = x + k; if (xx >= 0 && xx < W) { s += sal[y * W + xx]; n++; } }
+      t[y * W + x] = s / n;
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let s = 0, n = 0; for (let k = -2; k <= 2; k++) { const yy = y + k; if (yy >= 0 && yy < H) { s += t[yy * W + x]; n++; } }
+      sal[y * W + x] = s / n;
+    }
+  }
+  // summed-area tables make "total interest inside any rectangle" a 4-number lookup
+  const W1 = W + 1, I = new Float64Array(W1 * (H + 1)), IX = new Float64Array(I.length), IY = new Float64Array(I.length);
+  for (let y = 0; y < H; y++) { let r = 0, rx = 0, ry = 0;
+    for (let x = 0; x < W; x++) { const v = sal[y * W + x]; r += v; rx += v * x; ry += v * y;
+      const o = (y + 1) * W1 + x + 1; I[o] = I[o - W1] + r; IX[o] = IX[o - W1] + rx; IY[o] = IY[o - W1] + ry; } }
+  const sum = (T, x, y, w, h) => T[(y + h) * W1 + x + w] - T[y * W1 + x + w] - T[(y + h) * W1 + x] + T[y * W1 + x];
+  const total = sum(I, 0, 0, W, H) || 1e-6, mean = total / N;
+  const thirds = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+  let best = null;
+  for (let sc = 0.5; sc <= 0.781; sc += 0.04) {
+    const bw = Math.round(W * sc), bh = Math.round(H * sc);
+    for (let y = 0; y <= H - bh; y += 2) for (let x = 0; x <= W - bw; x += 2) {
+      const s = sum(I, x, y, bw, bh); if (s <= 0) continue;
+      const cx = (sum(IX, x, y, bw, bh) / s - x) / bw, cy = (sum(IY, x, y, bw, bh) / s - y) / bh;
+      let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(cx - tx, cy - ty));
+      const score = (s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + Math.max(0, 1 - dmin / 0.3) * 0.15;
+      if (!best || score > best.score) best = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
+    }
+  }
+  return best;
+}
+
+// Pick a film look from the scene's light and colour.
+function chooseLook(d, n) {
+  let sl = 0, sl2 = 0, ss = 0, warm = 0;
+  for (let i = 0; i < n; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], l = 0.299 * r + 0.587 * g + 0.114 * b;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    sl += l; sl2 += l * l; ss += mx ? (mx - mn) / mx : 0; warm += r - b;
+  }
+  const L = sl / n, sd = Math.sqrt(Math.max(0, sl2 / n - L * L)), sat = ss / n, w = warm / n;
+  let look, why;
+  if (L < 70) { look = "mono"; why = "low light"; }
+  else if (sat < 0.14) { look = "mono"; why = "muted colours"; }
+  else if (sd > 68) { look = "faded"; why = "harsh contrast"; }
+  else if (w > 14) { look = "golden"; why = "warm light"; }
+  else if (w < -14) { look = "slate"; why = "cool tones"; }
+  else { look = "golden"; why = "even light"; }
+  return { look, why };
+}
+
+// Build a grey, zero-mean version of the target so it can be matched in any lighting.
+function makeTemplate(gray, tw, th) {
+  let m = 0; for (let i = 0; i < gray.length; i++) m += gray[i]; m /= gray.length;
+  const t = new Float32Array(gray.length); let nn = 0;
+  for (let i = 0; i < gray.length; i++) { t[i] = gray[i] - m; nn += t[i] * t[i]; }
+  return { tw, th, t, norm: Math.sqrt(nn) || 1e-6 };
+}
+
+// Find where a template sits in a live frame (normalised cross-correlation),
+// trying several sizes because the person may step closer or further away.
+// Returns {x, y, w, h (fractions), score 0..1, idx (which size matched)}.
+function matchTemplates(G, W, H, tpls, hintIdx) {
+  const W1 = W + 1, S = new Float64Array(W1 * (H + 1)), S2 = new Float64Array(S.length);
+  for (let y = 0; y < H; y++) { let r = 0, r2 = 0;
+    for (let x = 0; x < W; x++) { const v = G[y * W + x]; r += v; r2 += v * v;
+      const o = (y + 1) * W1 + x + 1; S[o] = S[o - W1] + r; S2[o] = S2[o - W1] + r2; } }
+  const box = (T, x, y, w, h) => T[(y + h) * W1 + x + w] - T[y * W1 + x + w] - T[(y + h) * W1 + x] + T[y * W1 + x];
+  const ncc = (tp, x, y) => {
+    const { tw, th, t } = tp, n = tw * th;
+    const s = box(S, x, y, tw, th), v = box(S2, x, y, tw, th) - (s * s) / n;
+    if (v < 1e-3) return -1;
+    let num = 0;
+    for (let j = 0; j < th; j++) { const row = (y + j) * W + x, tr = j * tw; for (let i = 0; i < tw; i++) num += t[tr + i] * G[row + i]; }
+    return num / (tp.norm * Math.sqrt(v));
+  };
+  let lo = 0, hi = tpls.length - 1;
+  if (hintIdx != null) { lo = Math.max(0, hintIdx - 2); hi = Math.min(tpls.length - 1, hintIdx + 2); }
+  let best = { score: -2 };
+  for (let k = lo; k <= hi; k++) {
+    const tp = tpls[k]; if (tp.tw > W || tp.th > H) continue;
+    for (let y = 0; y <= H - tp.th; y += 2) for (let x = 0; x <= W - tp.tw; x += 2) {
+      const s = ncc(tp, x, y); if (s > best.score) best = { score: s, x, y, idx: k };
+    }
+  }
+  if (best.score < -1) return null;
+  const tp = tpls[best.idx]; // refine to the exact pixel
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const x = best.x + dx, y = best.y + dy; if (x < 0 || y < 0 || x > W - tp.tw || y > H - tp.th) continue;
+    const s = ncc(tp, x, y); if (s > best.score) best = { score: s, x, y, idx: best.idx };
+  }
+  return { x: best.x / W, y: best.y / H, w: tp.tw / W, h: tp.th / H, score: best.score, idx: best.idx };
+}
+
+// Auto exposure: stretch the darkest/brightest 1% to full range, then nudge the middle tones.
+function autoLevelsLUT(d, n) {
+  const hist = new Uint32Array(256); let cnt = 0;
+  for (let i = 0; i < n; i += 4) { hist[(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) | 0]++; cnt++; }
+  let acc = 0, lo = 0, hi = 255, sum = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= cnt * 0.01) { lo = v; break; } }
+  acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= cnt * 0.01) { hi = v; break; } }
+  lo = Math.min(lo, 40); hi = Math.max(hi, 200);
+  for (let v = 0; v < 256; v++) sum += hist[v] * Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
+  const mid = Math.min(0.95, Math.max(0.05, sum / cnt));
+  const gamma = Math.min(1.35, Math.max(0.75, Math.log(0.47) / Math.log(mid)));
+  const lut = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v++) lut[v] = 255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), gamma);
+  return lut;
+}
+
+/* ======================================================================
+   The camera app
+   ====================================================================== */
 (() => {
+  if (typeof document === "undefined") return;
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
-  const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout");
+  const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -193,12 +351,21 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)",
                fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; const f = (v) => 22 + (l + (v - l) * 0.85) * 0.86; return [f(r), f(g), f(b)]; } },
   };
+  const SCAN_MS = 5000;
+  const SCAN_STEPS = ["Reading the light", "Finding the subject", "Choosing a look", "Marking the shot"];
 
   const state = {
-    mode: "sample", aspectIdx: 0, look: "natural", grid: true, stamp: true, scout: true,
-    box: null, target: null, stream: null, source: null, lastAnalyze: 0, lastShot: null, claudeTip: "",
+    source: "sample",          // sample | still | live
+    phase: "idle",             // idle | scanning | aiming | ready
+    aspectIdx: 0, look: "auto", auto: null, grid: true, stamp: true,
+    img: null,                 // the still image (sample or photo)
+    ref: null,                 // frozen frame used for the scan
+    box: null,                 // target box, as fractions of the frame
+    tpls: null, track: null, trackIdx: null, lastTrack: 0, alignedSince: 0, lostSince: 0,
+    scanStart: 0, scanTimer: null, stream: null, lastShot: null, claudeTip: "",
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
+  const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
 
   /* ---------- sample scene so the app opens in a working state ---------- */
   function makeSample() {
@@ -211,12 +378,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     x.fillStyle = g; x.fillRect(0, 600, 900, 160);
     g = x.createLinearGradient(0, 760, 0, 1200); g.addColorStop(0, "#e2cfae"); g.addColorStop(1, "#c9b08a");
     x.fillStyle = g; x.fillRect(0, 760, 900, 440);
-    // parasol
     x.strokeStyle = "#5a4630"; x.lineWidth = 10; x.beginPath(); x.moveTo(610, 520); x.lineTo(625, 990); x.stroke();
     x.fillStyle = "#f3efe6"; x.beginPath(); x.moveTo(420, 600); x.quadraticCurveTo(610, 380, 810, 600); x.closePath(); x.fill();
     x.fillStyle = "#d9533b"; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(610, 470); x.lineTo(450 + i * 100, 598); x.lineTo(500 + i * 100, 598); x.closePath(); x.fill(); }
     x.fillStyle = "rgba(60,40,20,.25)"; x.beginPath(); x.ellipse(640, 1000, 190, 34, 0, 0, 7); x.fill();
-    // lounger
     x.fillStyle = "#f6f3ec"; x.fillRect(480, 900, 260, 26); x.save(); x.translate(480, 912); x.rotate(-0.5); x.fillRect(-120, -13, 120, 26); x.restore();
     x.fillStyle = "#3f6b3a"; for (let i = 0; i < 9; i++) { x.beginPath(); x.ellipse(110 + i * 14, 720 - (i % 3) * 30, 70, 16, -0.6 + i * 0.15, 0, 7); x.fill(); }
     return c;
@@ -228,262 +393,258 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     if (src instanceof HTMLImageElement) return [src.naturalWidth, src.naturalHeight];
     return [src.width, src.height];
   }
-  // draw `src` center-cropped to fill w×h (same as object-fit: cover)
-  function drawCover(ctx, src, w, h) {
+  function drawCover(ctx, src, w, h) { // same as CSS object-fit: cover
     const [sw, sh] = srcSize(src); if (!sw || !sh) return false;
     const a = w / h; let cw = sw, ch = sw / a;
     if (ch > sh) { ch = sh; cw = sh * a; }
     ctx.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, h);
     return true;
   }
-
-  /* ---------- on-device "find the shot" (free, no AI service) ---------- */
-  const ac = document.createElement("canvas"), actx = ac.getContext("2d", { willReadFrequently: true });
-  function analyze(src) {
-    const W = 72, H = Math.round(W / aspect()); ac.width = W; ac.height = H;
-    if (!drawCover(actx, src, W, H)) return null;
-    const d = actx.getImageData(0, 0, W, H).data, N = W * H;
-    const L = new Float32Array(N), S = new Float32Array(N);
-    let mr = 0, mg = 0, mb = 0;
-    for (let i = 0; i < N; i++) {
-      const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
-      L[i] = 0.299 * r + 0.587 * g + 0.114 * b;
-      const mx = Math.max(r, g, b), mn = Math.min(r, g, b); S[i] = mx ? (mx - mn) / mx : 0;
-      mr += r; mg += g; mb += b;
-    }
-    mr /= N; mg /= N; mb /= N;
-    const grad = new Float32Array(N), cd = new Float32Array(N); let gmax = 1e-6, cmax = 1e-6;
-    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-      const i = y * W + x;
-      grad[i] = Math.abs(L[i + 1] - L[i - 1]) + Math.abs(L[i + W] - L[i - W]);
-      const r = d[i * 4] - mr, g = d[i * 4 + 1] - mg, b = d[i * 4 + 2] - mb;
-      cd[i] = Math.sqrt(r * r + g * g + b * b);
-      if (grad[i] > gmax) gmax = grad[i]; if (cd[i] > cmax) cmax = cd[i];
-    }
-    let sal = new Float32Array(N);
-    for (let i = 0; i < N; i++) sal[i] = 0.45 * grad[i] / gmax + 0.4 * cd[i] / cmax + 0.15 * S[i];
-    // soften twice so we score regions, not single pixels
-    for (let pass = 0; pass < 2; pass++) {
-      const t = new Float32Array(N);
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        let s = 0, n = 0;
-        for (let k = -2; k <= 2; k++) { const xx = x + k; if (xx >= 0 && xx < W) { s += sal[y * W + xx]; n++; } }
-        t[y * W + x] = s / n;
-      }
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        let s = 0, n = 0;
-        for (let k = -2; k <= 2; k++) { const yy = y + k; if (yy >= 0 && yy < H) { s += t[yy * W + x]; n++; } }
-        sal[y * W + x] = s / n;
-      }
-    }
-    // summed-area tables: weight, weight·x, weight·y
-    const W1 = W + 1, I = new Float64Array(W1 * (H + 1)), IX = new Float64Array(I.length), IY = new Float64Array(I.length);
-    for (let y = 0; y < H; y++) { let r = 0, rx = 0, ry = 0;
-      for (let x = 0; x < W; x++) { const v = sal[y * W + x]; r += v; rx += v * x; ry += v * y;
-        const o = (y + 1) * W1 + x + 1; I[o] = I[o - W1] + r; IX[o] = IX[o - W1] + rx; IY[o] = IY[o - W1] + ry; } }
-    const sum = (T, x, y, w, h) => T[(y + h) * W1 + x + w] - T[y * W1 + x + w] - T[(y + h) * W1 + x] + T[y * W1 + x];
-    const total = sum(I, 0, 0, W, H) || 1e-6, mean = total / N;
-    const thirds = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
-    let best = null;
-    for (let sc = 0.5; sc <= 0.861; sc += 0.04) {
-      const bw = Math.round(W * sc), bh = Math.round(H * sc);
-      for (let y = 0; y <= H - bh; y += 2) for (let x = 0; x <= W - bw; x += 2) {
-        const s = sum(I, x, y, bw, bh); if (s <= 0) continue;
-        const cx = (sum(IX, x, y, bw, bh) / s - x) / bw, cy = (sum(IY, x, y, bw, bh) / s - y) / bh;
-        let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(cx - tx, cy - ty));
-        const score = (s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + Math.max(0, 1 - dmin / 0.3) * 0.15;
-        if (!best || score > best.score) best = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
-      }
-    }
-    return best;
+  const work = document.createElement("canvas"), wctx = work.getContext("2d", { willReadFrequently: true });
+  function pixels(src, w, h, crop) {
+    work.width = w; work.height = h;
+    if (crop) wctx.drawImage(src, crop.x * src.width, crop.y * src.height, crop.w * src.width, crop.h * src.height, 0, 0, w, h);
+    else if (!drawCover(wctx, src, w, h)) return null;
+    return wctx.getImageData(0, 0, w, h).data;
+  }
+  const currentSrc = () => (state.source === "live" ? video : state.img);
+  // Freeze what the camera (or photo) sees right now, cropped to the photo shape.
+  function freeze(src) {
+    const [sw, sh] = srcSize(src), a = aspect();
+    let w = Math.min(sw, sh * a), h = w / a; const k = Math.min(1, 1600 / Math.max(w, h));
+    const c = document.createElement("canvas"); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    drawCover(c.getContext("2d"), src, c.width, c.height);
+    return c;
   }
 
-  /* ---------- viewfinder sizing + overlay ---------- */
+  /* ---------- viewfinder ---------- */
   function fit() {
     const r = stage.getBoundingClientRect(); let w = r.width, h = w / aspect();
     if (h > r.height) { h = r.height; w = h * aspect(); }
     vf.style.width = w + "px"; vf.style.height = h + "px";
     const dpr = window.devicePixelRatio || 1;
     overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
-    if (state.mode !== "live") renderStill();
+    showStill();
   }
-  function renderStill() {
-    if (!state.source) return;
-    const w = Math.min(1200, overlay.width), h = Math.round(w / aspect());
-    still.width = w; still.height = h; drawCover(still.getContext("2d"), state.source, w, h);
+  function showStill() {
+    const src = state.phase === "scanning" || state.phase === "ready" ? state.ref || state.img : state.img;
+    if (state.source === "live" && state.phase !== "scanning") return;
+    if (!src) return;
+    const w = Math.min(1200, overlay.width || 600), h = Math.round(w / aspect());
+    still.width = w; still.height = h; drawCover(still.getContext("2d"), src, w, h);
   }
-  function drawOverlay() {
+  function applyPreviewLook() { video.style.filter = still.style.filter = LOOKS[lookKey()].css; }
+
+  const accent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f0b429";
+  function drawBox(c, b, W, H, dpr, color, dim) {
+    const x = b.x * W, y = b.y * H, w = b.w * W, h = b.h * H;
+    if (dim) { c.fillStyle = "rgba(0,0,0,.32)"; c.fillRect(0, 0, W, Math.max(0, y)); c.fillRect(0, y + h, W, H - y - h); c.fillRect(0, y, Math.max(0, x), h); c.fillRect(x + w, y, W - x - w, h); }
+    c.strokeStyle = color; c.lineWidth = 2 * dpr; c.strokeRect(x, y, w, h);
+    const t = 16 * dpr; c.lineWidth = 4 * dpr; c.beginPath();
+    for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { c.moveTo(px, py + sy * t); c.lineTo(px, py); c.lineTo(px + sx * t, py); }
+    c.stroke();
+  }
+  function drawOverlay(now) {
     const c = overlay.getContext("2d"), W = overlay.width, H = overlay.height, dpr = window.devicePixelRatio || 1;
     c.clearRect(0, 0, W, H);
-    if (state.grid) {
-      c.strokeStyle = "rgba(255,255,255,.32)"; c.lineWidth = dpr;
-      c.beginPath();
+    if (state.grid && state.phase !== "scanning") {
+      c.strokeStyle = "rgba(255,255,255,.3)"; c.lineWidth = dpr; c.beginPath();
       for (const f of [1 / 3, 2 / 3]) { c.moveTo(W * f, 0); c.lineTo(W * f, H); c.moveTo(0, H * f); c.lineTo(W, H * f); }
       c.stroke();
     }
-    const b = state.box;
-    if (state.scout && b) {
-      const x = b.x * W, y = b.y * H, w = b.w * W, h = b.h * H;
-      c.fillStyle = "rgba(0,0,0,.28)";
-      c.fillRect(0, 0, W, y); c.fillRect(0, y + h, W, H - y - h); c.fillRect(0, y, x, h); c.fillRect(x + w, y, W - x - w, h);
-      c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f0b429";
-      c.lineWidth = 2 * dpr; c.strokeRect(x, y, w, h);
-      const t = 14 * dpr; c.lineWidth = 4 * dpr; c.beginPath();
-      for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) {
-        c.moveTo(px, py + sy * t); c.lineTo(px, py); c.lineTo(px + sx * t, py);
+    if (state.phase === "scanning") {
+      const p = Math.min(1, (now - state.scanStart) / SCAN_MS);
+      c.fillStyle = "rgba(0,0,0,.25)"; c.fillRect(0, 0, W, H);
+      // dotted measuring grid
+      c.fillStyle = "rgba(255,255,255,.35)";
+      for (let gy = 1; gy < 12; gy++) for (let gx = 1; gx < 9; gx++) c.fillRect((gx / 9) * W - dpr, (gy / 12) * H - dpr, 2 * dpr, 2 * dpr);
+      // sweeping scan line
+      const y = (((now - state.scanStart) % 1250) / 1250) * H;
+      const g = c.createLinearGradient(0, y - 60 * dpr, 0, y);
+      g.addColorStop(0, "rgba(240,180,41,0)"); g.addColorStop(1, "rgba(240,180,41,.35)");
+      c.fillStyle = g; c.fillRect(0, y - 60 * dpr, W, 60 * dpr);
+      c.fillStyle = accent(); c.fillRect(0, y - dpr, W, 2 * dpr);
+      // the box fades in during the last step
+      if (state.box && p > 0.75) { c.globalAlpha = Math.min(1, (p - 0.75) / 0.2); drawBox(c, state.box, W, H, dpr, accent(), false); c.globalAlpha = 1; }
+      c.fillStyle = accent(); c.fillRect(0, H - 4 * dpr, W * p, 4 * dpr);
+      return;
+    }
+    if (state.phase === "ready" && state.box) drawBox(c, state.box, W, H, dpr, accent(), true);
+    if (state.phase === "aiming") {
+      // centre crosshair: aim this at the middle of the box
+      const cx = W / 2, cy = H / 2, r = 10 * dpr;
+      c.strokeStyle = "rgba(255,255,255,.9)"; c.lineWidth = 1.5 * dpr; c.beginPath();
+      c.moveTo(cx - r, cy); c.lineTo(cx + r, cy); c.moveTo(cx, cy - r); c.lineTo(cx, cy + r); c.stroke();
+      const tb = state.track;
+      if (tb && tb.score > 0.65) {
+        const aligned = !!state.alignedSince;
+        drawBox(c, tb, W, H, dpr, aligned ? "#ffffff" : accent(), true);
+        const bx = (tb.x + tb.w / 2) * W, by = (tb.y + tb.h / 2) * H;
+        if (!aligned) { // dashed line from the crosshair to the box centre
+          c.setLineDash([6 * dpr, 6 * dpr]); c.strokeStyle = accent(); c.lineWidth = 2 * dpr;
+          c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
+          c.fillStyle = accent(); c.beginPath(); c.arc(bx, by, 5 * dpr, 0, 7); c.fill();
+        } else { // hold-steady progress along the box bottom
+          const p = Math.min(1, (now - state.alignedSince) / 900);
+          c.fillStyle = "#ffffff"; c.fillRect(tb.x * W, (tb.y + tb.h) * H - 5 * dpr, tb.w * W * p, 5 * dpr);
+        }
       }
-      c.stroke();
-      c.lineWidth = 1.5 * dpr; const mx = x + w / 2, my = y + h / 2; c.beginPath();
-      c.moveTo(mx - 8 * dpr, my); c.lineTo(mx + 8 * dpr, my); c.moveTo(mx, my - 8 * dpr); c.lineTo(mx, my + 8 * dpr); c.stroke();
     }
   }
-  function liveHint(b) {
-    if (!state.scout) return "Scout off";
-    if (!b) return "Looking…";
-    const dx = b.x + b.w / 2 - 0.5, dy = b.y + b.h / 2 - 0.5;
-    if (Math.abs(dx) > 0.08) return dx > 0 ? "Pan <b>right</b>" : "Pan <b>left</b>";
-    if (Math.abs(dy) > 0.08) return dy > 0 ? "Tilt <b>down</b>" : "Tilt <b>up</b>";
-    if (b.w < 0.72) return "Step <b>closer</b>";
-    return "<b>Hold</b> — take it";
-  }
 
-  function loop(t) {
-    if (state.mode === "live" && state.scout && video.videoWidth && t - state.lastAnalyze > 380) {
-      state.lastAnalyze = t; state.target = analyze(video);
-    }
-    if (state.target) {
-      if (!state.box || state.mode !== "live") state.box = { ...state.target };
-      else for (const k of ["x", "y", "w", "h"]) state.box[k] += (state.target[k] - state.box[k]) * 0.3;
-    }
-    if (state.mode === "live") hint.innerHTML = liveHint(state.box);
-    drawOverlay();
-    requestAnimationFrame(loop);
+  /* ---------- the scan (5 seconds) ---------- */
+  function setPhase(p) {
+    state.phase = p; shutter.dataset.phase = p;
+    shutter.setAttribute("aria-label", { idle: "Scan the scene", scanning: "Scanning", aiming: "Take the photo now", ready: "Develop the framed shot" }[p]);
+    shutter.querySelector("span").textContent = p === "ready" ? "✓" : "";
+    $("#resetBtn").hidden = !(p === "aiming" || p === "ready");
+    $("#target").hidden = p !== "aiming";
+    updateAsk(); setReadout();
   }
-
-  /* ---------- sources ---------- */
-  function setReadout() {
-    const [a, b] = ASPECTS[state.aspectIdx];
-    readout.textContent = `${a}:${b} · ${({ live: "Live", still: "Photo", sample: "Sample" })[state.mode]}`;
+  function startScan() {
+    const src = currentSrc();
+    if (!src || (state.source === "live" && !video.videoWidth)) return;
+    state.ref = freeze(src); state.claudeTip = "";
+    state.scanStart = performance.now(); setPhase("scanning");
+    // show the frozen scene while we "think"
+    video.hidden = true; still.hidden = false; showStill();
+    const a = aspect(), W = 72, H = Math.round(W / a);
+    state.box = findBestCrop(pixels(state.ref, W, H), W, H);
+    state.auto = chooseLook(pixels(state.ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
+    refreshLookChips(); applyPreviewLook();
+    let step = 0; setStatus(SCAN_STEPS[0] + "…");
+    clearInterval(state.scanTimer);
+    state.scanTimer = setInterval(() => {
+      const left = Math.ceil((SCAN_MS - (performance.now() - state.scanStart)) / 1000);
+      hint.innerHTML = `Scanning · <b>${Math.max(0, left)}</b>`;
+      const s = Math.min(SCAN_STEPS.length - 1, Math.floor(((performance.now() - state.scanStart) / SCAN_MS) * SCAN_STEPS.length));
+      if (s !== step) { step = s; setStatus(SCAN_STEPS[s] + (s === 2 ? ` · ${LOOKS[state.auto.look].label} for ${state.auto.why}` : "…")); }
+      if (performance.now() - state.scanStart >= SCAN_MS) { clearInterval(state.scanTimer); finishScan(); }
+    }, 100);
+    hint.innerHTML = `Scanning · <b>5</b>`;
   }
-  function useStill(src, mode) {
-    stopCamera(); state.mode = mode; state.source = src; state.claudeTip = "";
-    video.hidden = true; still.hidden = false; tag.hidden = mode !== "sample";
-    renderStill(); state.target = state.scout ? analyze(src) : null; state.box = state.target && { ...state.target };
-    hint.innerHTML = mode === "sample" ? "Sample scene" : "Suggested <b>crop</b>";
-    setReadout(); updateAsk();
-  }
-  function stopCamera() {
-    if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
-    state.stream = null; $("#camLabel").textContent = "Live camera";
-  }
-  async function startCamera() {
-    if (state.mode === "live") return;
-    setStatus("Starting the camera…");
-    if (!navigator.mediaDevices?.getUserMedia) return cameraBlocked();
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false,
-      });
-      state.stream = s; video.srcObject = s; video.hidden = false; await video.play();
-      state.mode = "live"; state.source = video; still.hidden = true; tag.hidden = true; state.box = null; state.target = null;
-      $("#camLabel").textContent = "Camera on"; setReadout(); updateAsk();
-      setStatus("Follow the hint until it says Hold, then press the shutter.");
-    } catch (e) { cameraBlocked(); }
-  }
-  function cameraBlocked() {
-    setStatus("Live camera isn't allowed here. Tap Use a photo — iPhone lets you take one with the camera.", true);
-  }
-  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
-
-  $("#camBtn").onclick = startCamera;
-  $("#photoInput").onchange = (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const img = new Image(); img.onload = () => {
-      useStill(img, "still");
-      setStatus(askAvailable ? "Press the shutter to develop it, or ask Claude for its own framing." : "Press the shutter to develop the framed crop.");
-    };
-    img.onerror = () => setStatus("That file couldn't be opened. Try a JPEG or PNG photo.", true);
-    img.src = URL.createObjectURL(f); e.target.value = "";
-  };
-
-  /* ---------- controls ---------- */
-  function buildLooks() {
-    const wrap = $("#looks");
-    for (const [key, l] of Object.entries(LOOKS)) {
-      const b = document.createElement("button"); b.className = "look"; b.textContent = l.label;
-      b.setAttribute("aria-pressed", key === state.look); b.dataset.look = key;
-      b.onclick = () => {
-        state.look = key; wrap.querySelectorAll(".look").forEach((x) => x.setAttribute("aria-pressed", x.dataset.look === key));
-        video.style.filter = still.style.filter = l.css;
-      };
-      wrap.append(b);
+  function finishScan() {
+    if (state.source === "live") {
+      buildTemplates();
+      const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
+      tc.width = 128; tc.height = Math.round(128 / aspect());
+      tc.getContext("2d").drawImage(state.ref, b.x * rw, b.y * rh, b.w * rw, b.h * rh, 0, 0, tc.width, tc.height);
+      tc.style.filter = LOOKS[lookKey()].css;
+      video.hidden = false; still.hidden = true;
+      state.track = null; state.trackIdx = null; state.alignedSince = 0; state.lostSince = 0;
+      setPhase("aiming");
+      setStatus("Move your phone so the crosshair sits in the box. It shoots when you line up.");
+    } else {
+      setPhase("ready");
+      hint.innerHTML = "Shot <b>found</b> · tap ✓";
+      setStatus(askAvailable ? "Tap ✓ to develop it, or ask Claude for its own framing." : "Tap ✓ to develop the framed shot.");
     }
   }
-  const toggle = (btn, key, after) => (btn.onclick = () => { state[key] = !state[key]; btn.setAttribute("aria-pressed", state[key]); after && after(); });
-  toggle($("#gridBtn"), "grid");
-  toggle($("#dateBtn"), "stamp");
-  toggle($("#scoutBtn"), "scout", () => {
-    if (!state.scout) { state.box = state.target = null; if (state.mode !== "live") hint.textContent = "Scout off"; }
-    else if (state.mode !== "live") { state.target = analyze(state.source); state.box = state.target && { ...state.target }; hint.innerHTML = "Suggested <b>crop</b>"; }
-  });
-  $("#aspectBtn").onclick = () => {
-    state.aspectIdx = (state.aspectIdx + 1) % ASPECTS.length;
-    const [a, b] = ASPECTS[state.aspectIdx]; $("#aspectBtn").textContent = `${a}:${b}`;
-    setReadout(); fit();
-    if (state.mode !== "live" && state.scout) { state.target = analyze(state.source); state.box = state.target && { ...state.target }; }
-    else state.box = null;
-  };
 
-  /* ---------- developing a photo ---------- */
-  function develop(src, box) {
-    const [sw, sh] = srcSize(src), a = aspect();
-    let w = Math.min(sw, sh * a), h = w / a; const scale = Math.min(1, 2000 / Math.max(w, h));
-    w = Math.round(w * scale); h = Math.round(h * scale);
-    const base = document.createElement("canvas"); base.width = w; base.height = h;
-    const bx = base.getContext("2d"); drawCover(bx, src, w, h);
-    const fn = LOOKS[state.look].fn;
-    if (fn) {
-      const img = bx.getImageData(0, 0, w, h), p = img.data;
-      for (let i = 0; i < p.length; i += 4) {
-        const [r, g, b] = fn(p[i], p[i + 1], p[i + 2]), n = (Math.random() - 0.5) * 12;
-        p[i] = r + n; p[i + 1] = g + n; p[i + 2] = b + n;
-      }
-      bx.putImageData(img, 0, 0);
+  /* ---------- live tracking: where is the target box now? ---------- */
+  const TW = 48;
+  function buildTemplates() {
+    const b = state.box, TH = Math.round(TW / aspect()), list = [];
+    const bw0 = b.w * TW, bh0 = b.h * TH, sMax = Math.min(TW / bw0, TH / bh0);
+    for (let s = 0.7; s < sMax; s *= 1.12) list.push(tpl(Math.round(bw0 * s), Math.round(bh0 * s)));
+    list.push(tpl(Math.floor(bw0 * sMax), Math.floor(bh0 * sMax)));
+    state.tpls = list.filter((t) => t.tw >= 8 && t.th >= 8);
+    function tpl(tw, th) { return makeTemplate(toGray(pixels(state.ref, tw, th, b), tw * th), tw, th); }
+  }
+  function trackStep(now) {
+    if (now - state.lastTrack < 90 || !video.videoWidth || !state.tpls?.length) return;
+    state.lastTrack = now;
+    const TH = Math.round(TW / aspect());
+    const G = toGray(pixels(video, TW, TH), TW * TH);
+    let m = matchTemplates(G, TW, TH, state.tpls, state.trackIdx);
+    if ((!m || m.score < 0.65) && state.trackIdx != null) m = matchTemplates(G, TW, TH, state.tpls, null); // search all sizes again
+    if (!m || m.score < 0.65) {
+      state.trackIdx = null; state.alignedSince = 0;
+      if (!state.lostSince) state.lostSince = now;
+      if (now - state.lostSince > 400) { state.track = null; hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
+      return;
     }
+    state.lostSince = 0; state.trackIdx = m.idx;
+    if (!state.track) state.track = m;
+    else for (const k of ["x", "y", "w", "h", "score"]) state.track[k] += (m[k] - state.track[k]) * 0.5;
+    guide(now);
+  }
+  function guide(now) {
+    const t = state.track, dx = t.x + t.w / 2 - 0.5, dy = t.y + t.h / 2 - 0.5;
+    const centered = Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05;
+    if (!centered) {
+      state.alignedSince = 0;
+      hint.innerHTML = Math.abs(dx) >= Math.abs(dy)
+        ? (dx > 0 ? "Move <b>right</b> ›" : "‹ Move <b>left</b>")
+        : (dy > 0 ? "Tilt <b>down</b> ↓" : "Tilt <b>up</b> ↑");
+      return;
+    }
+    if (!state.alignedSince) state.alignedSince = now;
+    hint.innerHTML = t.w < 0.8 ? "<b>Hold</b> · or step closer" : "<b>Hold</b> steady";
+    if (now - state.alignedSince > 900) capture();
+  }
+
+  /* ---------- developing ---------- */
+  function develop(src, crop) {
+    const base = freeze(src), w = base.width, h = base.height, bx = base.getContext("2d");
+    const img = bx.getImageData(0, 0, w, h), p = img.data, n = w * h;
+    const lut = autoLevelsLUT(p, n), key = lookKey(), fn = LOOKS[key].fn;
+    for (let i = 0; i < p.length; i += 4) {
+      let r = lut[p[i]], g = lut[p[i + 1]], b = lut[p[i + 2]];
+      if (fn) { const nz = (Math.random() - 0.5) * 12; [r, g, b] = fn(r, g, b); r += nz; g += nz; b += nz; }
+      p[i] = r; p[i + 1] = g; p[i + 2] = b;
+    }
+    bx.putImageData(img, 0, 0);
     const out = (cx, cy, cw, ch) => {
       const c = document.createElement("canvas"); c.width = Math.round(cw); c.height = Math.round(ch);
       const x = c.getContext("2d"); x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
+      const v = x.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * 0.35, c.width / 2, c.height / 2, Math.hypot(c.width, c.height) / 2);
+      v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${key === "natural" ? 0.1 : 0.24})`);
+      x.fillStyle = v; x.fillRect(0, 0, c.width, c.height);
       if (state.stamp) {
-        const d = new Date(), pad = (n) => String(n).padStart(2, "0");
-        const txt = `'${pad(d.getFullYear() % 100)} ${pad(d.getMonth() + 1)} ${pad(d.getDate())}`;
-        const fs = Math.round(c.width * 0.042);
-        x.font = `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`; x.textAlign = "right"; x.textBaseline = "alphabetic";
+        const d = new Date(), pad = (k) => String(k).padStart(2, "0");
+        const txt = `'${pad(d.getFullYear() % 100)} ${pad(d.getMonth() + 1)} ${pad(d.getDate())}`, fs = Math.round(c.width * 0.042);
+        x.font = `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`; x.textAlign = "right";
         x.shadowColor = "rgba(255,110,40,.7)"; x.shadowBlur = fs * 0.35; x.fillStyle = "#ff8a3d";
         x.fillText(txt, c.width * 0.95, c.height * 0.95);
       }
       return c;
     };
     const full = out(0, 0, w, h);
-    const framed = box ? out(box.x * w, box.y * h, box.w * w, box.h * h) : full;
+    let framed = full;
+    if (crop) {
+      const cx = Math.max(0, crop.x), cy = Math.max(0, crop.y);
+      const cw = Math.min(1, crop.x + crop.w) - cx, ch = Math.min(1, crop.y + crop.h) - cy;
+      if (cw < 0.97 || ch < 0.97) framed = out(cx * w, cy * h, cw * w, ch * h);
+    }
     return { full, framed };
   }
   const toBlob = (c) => new Promise((res) => c.toBlob(res, "image/jpeg", 0.92));
+  let capturing = false;
+  async function capture() {
+    if (capturing) return; capturing = true;
+    try {
+      const live = state.source === "live";
+      const src = live ? video : state.ref;
+      const crop = live ? (state.track && state.track.score > 0.65 ? state.track : null) : state.box;
+      vf.animate?.([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240 });
+      const { full, framed } = develop(src, crop);
+      const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
+      if (state.lastShot) { URL.revokeObjectURL(state.lastShot.framedUrl); URL.revokeObjectURL(state.lastShot.fullUrl); }
+      state.lastShot = { framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb), tip: state.claudeTip,
+        look: LOOKS[lookKey()].label + (state.look === "auto" && state.auto ? ` · auto for ${state.auto.why}` : "") };
+      $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
+      resetToIdle(); openSheet();
+    } finally { capturing = false; }
+  }
 
-  $("#shutter").onclick = async () => {
-    const src = state.source; if (!src) return;
-    if (state.mode === "live" && !video.videoWidth) return;
-    vf.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220 });
-    const { full, framed } = develop(src, state.scout ? state.box : null);
-    const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
-    if (state.lastShot) { URL.revokeObjectURL(state.lastShot.framedUrl); URL.revokeObjectURL(state.lastShot.fullUrl); }
-    state.lastShot = { framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb), tip: state.claudeTip };
-    $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
-    openSheet();
-  };
+  /* ---------- result sheet ---------- */
   function openSheet() {
     const s = state.lastShot; if (!s) return;
-    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl;
-    const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.innerHTML = s.tip ? "<b>Claude's tip:</b> " : ""; if (s.tip) tipEl.append(s.tip);
+    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl; $("#sheetLook").textContent = s.look;
+    const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.textContent = "";
+    if (s.tip) { const b = document.createElement("b"); b.textContent = "Claude's tip: "; tipEl.append(b, s.tip); }
+    $("#saveHelp").textContent = "Tap Save, or press and hold a photo and choose Save to Photos.";
     $("#sheet").hidden = false;
   }
   $("#thumb").onclick = openSheet;
@@ -492,61 +653,146 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   document.querySelectorAll("[data-save]").forEach((btn) => (btn.onclick = async () => {
     const which = btn.dataset.save, blob = state.lastShot?.[which]; if (!blob) return;
     const file = new File([blob], `thirds-${which}-${Date.now()}.jpg`, { type: "image/jpeg" });
-    try {
-      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
-    } catch (e) { if (e?.name === "AbortError") return; }
+    try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; } }
+    catch (e) { if (e?.name === "AbortError") return; }
     $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo, then choose Save to Photos.";
   }));
 
-  /* ---------- Ask Claude (only inside the Claude app, on the viewer's own Claude usage) ---------- */
+  /* ---------- sources ---------- */
+  function setReadout() {
+    const [a, b] = ASPECTS[state.aspectIdx];
+    const src = { live: "Live", still: "Photo", sample: "Sample" }[state.source];
+    const ph = { idle: "", scanning: " · Scanning", aiming: " · Aiming", ready: " · Found" }[state.phase];
+    readout.textContent = `${a}:${b} · ${src}${ph}`;
+  }
+  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
+  function resetToIdle() {
+    clearInterval(state.scanTimer);
+    state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0;
+    setPhase("idle");
+    if (state.source === "live") { video.hidden = false; still.hidden = true; }
+    else { video.hidden = true; still.hidden = false; showStill(); }
+    hint.innerHTML = "Tap the shutter to <b>scan</b>";
+  }
+  function useStill(img, kind) {
+    stopCamera(); state.source = kind; state.img = img; state.ref = null; tag.hidden = kind !== "sample";
+    resetToIdle();
+  }
+  function stopCamera() {
+    if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+    state.stream = null; video.srcObject = null; $("#camLabel").textContent = "Live camera";
+  }
+  async function startCamera() {
+    if (state.source === "live") return;
+    setStatus("Starting the camera…");
+    if (!navigator.mediaDevices?.getUserMedia) return cameraBlocked();
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false,
+      });
+      state.stream = s; video.srcObject = s; await video.play();
+      state.source = "live"; tag.hidden = true; $("#camLabel").textContent = "Camera on";
+      resetToIdle();
+      setStatus("Point at a scene and press the shutter. Thirds scans for 5 seconds.");
+    } catch (e) { cameraBlocked(); }
+  }
+  function cameraBlocked() {
+    setStatus("Live camera isn't allowed here. Tap Use a photo — iPhone lets you take one with the camera.", true);
+  }
+  $("#camBtn").onclick = startCamera;
+  $("#photoInput").onchange = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const img = new Image();
+    img.onload = () => { useStill(img, "still"); setStatus("Press the shutter to scan your photo."); };
+    img.onerror = () => setStatus("That file couldn't be opened. Try a JPEG or PNG photo.", true);
+    img.src = URL.createObjectURL(f); e.target.value = "";
+  };
+
+  /* ---------- controls ---------- */
+  function refreshLookChips() {
+    document.querySelectorAll(".look").forEach((b) => {
+      b.setAttribute("aria-pressed", b.dataset.look === state.look);
+      if (b.dataset.look === "auto") b.textContent = state.auto ? `Auto · ${LOOKS[state.auto.look].label}` : "Auto";
+    });
+  }
+  function buildLooks() {
+    const wrap = $("#looks");
+    for (const key of ["auto", ...Object.keys(LOOKS)]) {
+      const b = document.createElement("button"); b.className = "look"; b.dataset.look = key;
+      b.textContent = key === "auto" ? "Auto" : LOOKS[key].label;
+      b.onclick = () => { state.look = key; refreshLookChips(); applyPreviewLook(); };
+      wrap.append(b);
+    }
+    refreshLookChips();
+  }
+  const toggle = (btn, key) => (btn.onclick = () => { state[key] = !state[key]; btn.setAttribute("aria-pressed", state[key]); });
+  toggle($("#gridBtn"), "grid");
+  toggle($("#dateBtn"), "stamp");
+  $("#aspectBtn").onclick = () => {
+    state.aspectIdx = (state.aspectIdx + 1) % ASPECTS.length;
+    const [a, b] = ASPECTS[state.aspectIdx]; $("#aspectBtn").textContent = `${a}:${b}`;
+    state.ref = null; resetToIdle(); fit();
+  };
+  shutter.onclick = () => {
+    if (state.phase === "idle") startScan();
+    else if (state.phase === "aiming" || state.phase === "ready") capture();
+  };
+  $("#resetBtn").onclick = () => { state.ref = null; resetToIdle(); setStatus("Press the shutter to scan again."); };
+
+  /* ---------- Ask Claude (inside the Claude app only, on the viewer's own Claude usage) ---------- */
   let sample = null, askAvailable = false;
-  function updateAsk() { $("#askBtn").hidden = !(askAvailable && state.mode === "still"); }
+  function updateAsk() { $("#askBtn").hidden = !(askAvailable && state.source === "still" && state.phase === "ready"); }
   (async () => {
     try {
       if (!window.claude?.use) return;
       sample = await window.claude.use("sample"); if (!sample) return;
       const lim = await sample.limits().catch(() => null);
       askAvailable = !!lim?.images; updateAsk();
-    } catch (e) { /* not inside Claude: the free on-device scout still works */ }
+    } catch (e) { /* not inside Claude: the free on-device scan still works */ }
   })();
   $("#askBtn").onclick = async () => {
-    if (!sample || !state.source || state.mode !== "still") return;
+    if (!sample || !state.ref) return;
     const btn = $("#askBtn"); btn.disabled = true; btn.classList.add("busy");
     setStatus("Claude is studying your photo…");
     try {
-      const c = document.createElement("canvas"); const w = 1024, h = Math.round(w / aspect());
-      c.width = w; c.height = h; drawCover(c.getContext("2d"), state.source, w, h);
+      const c = document.createElement("canvas"); c.width = 1024; c.height = Math.round(1024 / aspect());
+      c.getContext("2d").drawImage(state.ref, 0, 0, c.width, c.height);
       const blob = await toBlob(c);
       const res = await sample.json(
         "You are a photography coach. The image is a phone photo. Choose the single best crop inside it for a striking, " +
         "well-composed photo (rule of thirds, clean edges, strong subject, no awkward cut-offs). The crop keeps the same shape as the image, " +
-        "so its width and height fractions are equal. Reply with only JSON like " +
-        '{"x":0.1,"y":0.2,"size":0.7,"tip":"One short sentence on how to reshoot this better, e.g. where to stand or what to move."} ' +
+        "so its width and height fractions are equal. Also pick the film look that suits it best from: natural, golden, slate, mono, faded. " +
+        'Reply with only JSON like {"x":0.1,"y":0.2,"size":0.7,"look":"golden","tip":"One short sentence on how to reshoot this better."} ' +
         "where x and y are the crop's top-left corner as fractions (0-1) of the image width and height, and size (0.35-1) is the crop's width as a fraction of the image width.",
         { images: blob }
       );
       const s = Math.min(1, Math.max(0.35, Number(res?.size) || 0.75));
       const x = Math.min(1 - s, Math.max(0, Number(res?.x) || 0)), y = Math.min(1 - s, Math.max(0, Number(res?.y) || 0));
-      if (!state.scout) { state.scout = true; $("#scoutBtn").setAttribute("aria-pressed", true); }
-      state.target = { x, y, w: s, h: s, score: 1 }; state.box = { ...state.target };
+      state.box = { x, y, w: s, h: s, score: 1 };
+      if (LOOKS[res?.look]) { state.auto = { look: res.look, why: "Claude's pick" }; refreshLookChips(); applyPreviewLook(); }
       state.claudeTip = typeof res?.tip === "string" ? res.tip.slice(0, 220) : "";
-      hint.innerHTML = "Claude's <b>crop</b>";
-      setStatus(state.claudeTip ? "Claude: " + state.claudeTip : "Claude moved the box. Press the shutter to develop it.");
+      hint.innerHTML = "Claude's <b>shot</b> · tap ✓";
+      setStatus(state.claudeTip ? "Claude: " + state.claudeTip : "Claude moved the box. Tap ✓ to develop it.");
     } catch (e) {
       const code = e?.code;
       if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "images_unavailable"].includes(code)) {
-        askAvailable = false; updateAsk(); setStatus("Claude isn't available for this page. The free Scout box still works.", true);
+        askAvailable = false; updateAsk(); setStatus("Claude isn't available for this page. The free scan still works.", true);
       } else if (code === "rate_limited") setStatus("Claude is busy for you right now. Try again in a little while.", true);
       else if (code === "cancelled") setStatus("");
       else setStatus("Claude couldn't frame this one. Tap Claude to try again.", true);
     } finally { btn.disabled = false; btn.classList.remove("busy"); }
   };
 
-  /* ---------- start ---------- */
+  /* ---------- main loop ---------- */
+  function loop(now) {
+    if (state.phase === "aiming") trackStep(now);
+    drawOverlay(now);
+    requestAnimationFrame(loop);
+  }
   buildLooks();
   new ResizeObserver(fit).observe(stage);
-  state.source = makeSample();
-  fit(); useStill(state.source, "sample");
+  useStill(makeSample(), "sample");
+  fit();
   requestAnimationFrame(loop);
 })();
 </script>

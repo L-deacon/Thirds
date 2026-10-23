@@ -53,6 +53,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .vf { position: relative; background: var(--void); border-radius: 18px; overflow: hidden; }
 .vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vf video { transition: transform 0.6s cubic-bezier(.2, .7, .2, 1), filter 0.6s ease; }
 .vf canvas.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .hint {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px);
@@ -118,7 +119,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .tip { margin: 0; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tip b { color: var(--accent); font-weight: 600; }
 
-@media (prefers-reduced-motion: reduce) { .round.busy i { animation: none; } .shutter span { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .vf video { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
 </style>
 
 <div class="app">
@@ -351,7 +352,7 @@ function autoLevelsLUT(d, n) {
     faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)",
                fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; const f = (v) => 22 + (l + (v - l) * 0.85) * 0.86; return [f(r), f(g), f(b)]; } },
   };
-  const SCAN_MS = 5000;
+  const SCAN_MS = 5000, HOLD_MS = 1400;
   const SCAN_STEPS = ["Reading the light", "Finding the subject", "Choosing a look", "Marking the shot"];
 
   const state = {
@@ -428,12 +429,27 @@ function autoLevelsLUT(d, n) {
   }
   function showStill() {
     const src = state.phase === "scanning" || state.phase === "ready" ? state.ref || state.img : state.img;
-    if (state.source === "live" && state.phase !== "scanning") return;
+    if (state.source === "live") return; // the live camera is never frozen on screen
     if (!src) return;
     const w = Math.min(1200, overlay.width || 600), h = Math.round(w / aspect());
     still.width = w; still.height = h; drawCover(still.getContext("2d"), src, w, h);
   }
-  function applyPreviewLook() { video.style.filter = still.style.filter = LOOKS[lookKey()].css; }
+  // Stills always preview the look. The live camera stays natural while you aim,
+  // then the look fades in as it zooms onto the shot.
+  function applyPreviewLook() {
+    const css = LOOKS[lookKey()].css;
+    still.style.filter = css;
+    video.style.filter = state.zoomed ? css : "none";
+  }
+  function setZoom(t) {
+    if (t) {
+      const k = Math.min(3, 1 / Math.max(t.w, t.h));
+      video.style.transformOrigin = `${(t.x + t.w / 2) * 100}% ${(t.y + t.h / 2) * 100}%`;
+      video.style.transform = `scale(${k.toFixed(3)})`;
+      state.zoomed = true;
+    } else { video.style.transform = ""; state.zoomed = false; }
+    applyPreviewLook();
+  }
 
   const accent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f0b429";
   function drawBox(c, b, W, H, dpr, color, dim) {
@@ -454,7 +470,7 @@ function autoLevelsLUT(d, n) {
     }
     if (state.phase === "scanning") {
       const p = Math.min(1, (now - state.scanStart) / SCAN_MS);
-      c.fillStyle = "rgba(0,0,0,.25)"; c.fillRect(0, 0, W, H);
+      c.fillStyle = "rgba(0,0,0,.14)"; c.fillRect(0, 0, W, H);
       // dotted measuring grid
       c.fillStyle = "rgba(255,255,255,.35)";
       for (let gy = 1; gy < 12; gy++) for (let gx = 1; gx < 9; gx++) c.fillRect((gx / 9) * W - dpr, (gy / 12) * H - dpr, 2 * dpr, 2 * dpr);
@@ -464,31 +480,51 @@ function autoLevelsLUT(d, n) {
       g.addColorStop(0, "rgba(240,180,41,0)"); g.addColorStop(1, "rgba(240,180,41,.35)");
       c.fillStyle = g; c.fillRect(0, y - 60 * dpr, W, 60 * dpr);
       c.fillStyle = accent(); c.fillRect(0, y - dpr, W, 2 * dpr);
-      // the box fades in during the last step
-      if (state.box && p > 0.75) { c.globalAlpha = Math.min(1, (p - 0.75) / 0.2); drawBox(c, state.box, W, H, dpr, accent(), false); c.globalAlpha = 1; }
+      // the box fades in once it's found; on the live camera it already follows the scene
+      const sb = state.source === "live" ? (state.track && state.track.score > 0.65 ? state.track : null) : state.box;
+      if (sb && p > 0.5) { c.globalAlpha = Math.min(1, (p - 0.5) / 0.25); drawBox(c, sb, W, H, dpr, accent(), false); c.globalAlpha = 1; }
       c.fillStyle = accent(); c.fillRect(0, H - 4 * dpr, W * p, 4 * dpr);
       return;
     }
     if (state.phase === "ready" && state.box) drawBox(c, state.box, W, H, dpr, accent(), true);
     if (state.phase === "aiming") {
-      // centre crosshair: aim this at the middle of the box
-      const cx = W / 2, cy = H / 2, r = 10 * dpr;
-      c.strokeStyle = "rgba(255,255,255,.9)"; c.lineWidth = 1.5 * dpr; c.beginPath();
-      c.moveTo(cx - r, cy); c.lineTo(cx + r, cy); c.moveTo(cx, cy - r); c.lineTo(cx, cy + r); c.stroke();
-      const tb = state.track;
-      if (tb && tb.score > 0.65) {
-        const aligned = !!state.alignedSince;
+      const cx = W / 2, cy = H / 2, tb = state.track, ok = tb && tb.score > 0.65, aligned = ok && !!state.alignedSince;
+      if (aligned) {
+        // zoomed onto the shot: the whole viewfinder is now the photo
+        drawBox(c, { x: 0.03, y: 0.03, w: 0.94, h: 0.94 }, W, H, dpr, "#ffffff", false);
+        const p = Math.min(1, (now - state.alignedSince) / HOLD_MS);
+        c.fillStyle = "#ffffff"; c.fillRect(0, H - 5 * dpr, W * p, 5 * dpr);
+        c.font = `500 ${11 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center";
+        const label = `${LOOKS[lookKey()].label.toUpperCase()} · ${(1 / Math.max(tb.w, tb.h)).toFixed(1)}×`;
+        const tw = c.measureText(label).width + 20 * dpr;
+        c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(cx - tw / 2, 18 * dpr, tw, 22 * dpr);
+        c.fillStyle = "#ffffff"; c.fillText(label, cx, 33 * dpr);
+        return;
+      }
+      if (ok) {
         drawBox(c, tb, W, H, dpr, aligned ? "#ffffff" : accent(), true);
         const bx = (tb.x + tb.w / 2) * W, by = (tb.y + tb.h / 2) * H;
-        if (!aligned) { // dashed line from the crosshair to the box centre
+        // the best spot: a pulsing "aim here" ring at the centre of the shot
+        const pulse = 0.5 + 0.5 * Math.sin(now / 220), R = (22 + 6 * pulse) * dpr;
+        c.strokeStyle = aligned ? "#ffffff" : accent(); c.lineWidth = 2.5 * dpr;
+        c.beginPath(); c.arc(bx, by, R, 0, 7); c.stroke();
+        c.globalAlpha = 0.25 + 0.2 * pulse; c.fillStyle = c.strokeStyle; c.beginPath(); c.arc(bx, by, R, 0, 7); c.fill(); c.globalAlpha = 1;
+        if (!aligned) {
+          c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center"; c.fillStyle = accent();
+          c.fillText("AIM HERE", bx, by - R - 6 * dpr);
+          // dashed path from your crosshair to the spot
           c.setLineDash([6 * dpr, 6 * dpr]); c.strokeStyle = accent(); c.lineWidth = 2 * dpr;
           c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
-          c.fillStyle = accent(); c.beginPath(); c.arc(bx, by, 5 * dpr, 0, 7); c.fill();
         } else { // hold-steady progress along the box bottom
           const p = Math.min(1, (now - state.alignedSince) / 900);
           c.fillStyle = "#ffffff"; c.fillRect(tb.x * W, (tb.y + tb.h) * H - 5 * dpr, tb.w * W * p, 5 * dpr);
         }
       }
+      // your crosshair: always the middle of the screen — move the phone to put it in the ring
+      const r = 14 * dpr;
+      c.strokeStyle = aligned ? "#ffffff" : "rgba(255,255,255,.95)"; c.lineWidth = 2 * dpr; c.beginPath();
+      c.moveTo(cx - r, cy); c.lineTo(cx - 4 * dpr, cy); c.moveTo(cx + 4 * dpr, cy); c.lineTo(cx + r, cy);
+      c.moveTo(cx, cy - r); c.lineTo(cx, cy - 4 * dpr); c.moveTo(cx, cy + 4 * dpr); c.lineTo(cx, cy + r); c.stroke();
     }
   }
 
@@ -504,36 +540,42 @@ function autoLevelsLUT(d, n) {
   function startScan() {
     const src = currentSrc();
     if (!src || (state.source === "live" && !video.videoWidth)) return;
-    state.ref = freeze(src); state.claudeTip = "";
+    state.claudeTip = ""; state.box = null; state.tpls = null; state.ref = null;
+    state.track = null; state.trackIdx = null; state.alignedSince = 0; state.lostSince = 0;
     state.scanStart = performance.now(); setPhase("scanning");
-    // show the frozen scene while we "think"
-    video.hidden = true; still.hidden = false; showStill();
-    const a = aspect(), W = 72, H = Math.round(W / a);
-    state.box = findBestCrop(pixels(state.ref, W, H), W, H);
-    state.auto = chooseLook(pixels(state.ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
-    refreshLookChips(); applyPreviewLook();
+    if (state.source === "live") { video.hidden = false; still.hidden = true; } // camera stays live while scanning
+    else { analyzeRef(src); still.hidden = false; showStill(); }
     let step = 0; setStatus(SCAN_STEPS[0] + "…");
     clearInterval(state.scanTimer);
     state.scanTimer = setInterval(() => {
+      // live: read the scene part-way through, so the box matches where you're pointing now
+      if (state.source === "live" && !state.box && performance.now() - state.scanStart >= SCAN_MS * 0.4) { analyzeRef(video); buildTemplates(); }
       const left = Math.ceil((SCAN_MS - (performance.now() - state.scanStart)) / 1000);
       hint.innerHTML = `Scanning · <b>${Math.max(0, left)}</b>`;
       const s = Math.min(SCAN_STEPS.length - 1, Math.floor(((performance.now() - state.scanStart) / SCAN_MS) * SCAN_STEPS.length));
-      if (s !== step) { step = s; setStatus(SCAN_STEPS[s] + (s === 2 ? ` · ${LOOKS[state.auto.look].label} for ${state.auto.why}` : "…")); }
+      if (s !== step) { step = s; setStatus(SCAN_STEPS[s] + (s === 2 && state.auto ? ` · ${LOOKS[state.auto.look].label} for ${state.auto.why}` : "…")); }
       if (performance.now() - state.scanStart >= SCAN_MS) { clearInterval(state.scanTimer); finishScan(); }
     }, 100);
     hint.innerHTML = `Scanning · <b>5</b>`;
   }
+  function analyzeRef(src) {
+    state.ref = freeze(src);
+    const a = aspect(), W = 72, H = Math.round(W / a);
+    state.box = findBestCrop(pixels(state.ref, W, H), W, H);
+    state.auto = chooseLook(pixels(state.ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
+    refreshLookChips(); applyPreviewLook();
+  }
   function finishScan() {
     if (state.source === "live") {
-      buildTemplates();
+      if (!state.box) analyzeRef(video);
+      if (!state.tpls) buildTemplates();
       const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
       tc.width = 128; tc.height = Math.round(128 / aspect());
       tc.getContext("2d").drawImage(state.ref, b.x * rw, b.y * rh, b.w * rw, b.h * rh, 0, 0, tc.width, tc.height);
       tc.style.filter = LOOKS[lookKey()].css;
-      video.hidden = false; still.hidden = true;
-      state.track = null; state.trackIdx = null; state.alignedSince = 0; state.lostSince = 0;
+      state.alignedSince = 0; state.lostSince = 0;
       setPhase("aiming");
-      setStatus("Move your phone so the crosshair sits in the box. It shoots when you line up.");
+      setStatus("Move your phone until the crosshair sits in the AIM HERE ring. It shoots when you line up.");
     } else {
       setPhase("ready");
       hint.innerHTML = "Shot <b>found</b> · tap ✓";
@@ -559,29 +601,32 @@ function autoLevelsLUT(d, n) {
     let m = matchTemplates(G, TW, TH, state.tpls, state.trackIdx);
     if ((!m || m.score < 0.65) && state.trackIdx != null) m = matchTemplates(G, TW, TH, state.tpls, null); // search all sizes again
     if (!m || m.score < 0.65) {
-      state.trackIdx = null; state.alignedSince = 0;
+      state.trackIdx = null;
+      if (state.alignedSince) { state.alignedSince = 0; setZoom(null); }
       if (!state.lostSince) state.lostSince = now;
-      if (now - state.lostSince > 400) { state.track = null; hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
+      if (now - state.lostSince > 400) { state.track = null; if (state.phase === "aiming") hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
       return;
     }
     state.lostSince = 0; state.trackIdx = m.idx;
     if (!state.track) state.track = m;
     else for (const k of ["x", "y", "w", "h", "score"]) state.track[k] += (m[k] - state.track[k]) * 0.5;
-    guide(now);
+    if (state.phase === "aiming") guide(now);
   }
   function guide(now) {
     const t = state.track, dx = t.x + t.w / 2 - 0.5, dy = t.y + t.h / 2 - 0.5;
-    const centered = Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05;
+    const tol = state.alignedSince ? 0.09 : 0.05; // once locked, allow a little wobble
+    const centered = Math.abs(dx) < tol && Math.abs(dy) < tol;
     if (!centered) {
+      if (state.alignedSince) setZoom(null);
       state.alignedSince = 0;
       hint.innerHTML = Math.abs(dx) >= Math.abs(dy)
         ? (dx > 0 ? "Move <b>right</b> ›" : "‹ Move <b>left</b>")
         : (dy > 0 ? "Tilt <b>down</b> ↓" : "Tilt <b>up</b> ↑");
       return;
     }
-    if (!state.alignedSince) state.alignedSince = now;
-    hint.innerHTML = t.w < 0.8 ? "<b>Hold</b> · or step closer" : "<b>Hold</b> steady";
-    if (now - state.alignedSince > 900) capture();
+    if (!state.alignedSince) { state.alignedSince = now; setZoom(t); }
+    hint.innerHTML = "<b>Locked</b> · hold steady";
+    if (now - state.alignedSince > HOLD_MS) capture();
   }
 
   /* ---------- developing ---------- */
@@ -669,7 +714,7 @@ function autoLevelsLUT(d, n) {
   function resetToIdle() {
     clearInterval(state.scanTimer);
     state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0;
-    setPhase("idle");
+    setPhase("idle"); setZoom(null);
     if (state.source === "live") { video.hidden = false; still.hidden = true; }
     else { video.hidden = true; still.hidden = false; showStill(); }
     hint.innerHTML = "Tap the shutter to <b>scan</b>";
@@ -785,7 +830,7 @@ function autoLevelsLUT(d, n) {
 
   /* ---------- main loop ---------- */
   function loop(now) {
-    if (state.phase === "aiming") trackStep(now);
+    if (state.phase === "aiming" || (state.phase === "scanning" && state.source === "live" && state.tpls)) trackStep(now);
     drawOverlay(now);
     requestAnimationFrame(loop);
   }

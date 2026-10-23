@@ -54,6 +54,14 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .vf { position: relative; background: var(--void); border-radius: 18px; overflow: hidden; }
 .vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .vf video { transition: transform 0.6s cubic-bezier(.2, .7, .2, 1), filter 0.6s ease; }
+.vf .lens { position: absolute; inset: 0; transition: transform 0.35s ease; }
+.vf.has-zoom .hint { bottom: 58px; }
+.zooms { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--void) 60%, transparent); }
+.zooms button { width: 36px; height: 36px; border-radius: 50%; border: none; background: color-mix(in srgb, var(--panel) 80%, transparent);
+  font-family: var(--mono); font-size: 11px; color: var(--fg); padding: 0; }
+.zooms button[aria-pressed="true"] { color: var(--accent); background: color-mix(in srgb, var(--void) 85%, transparent); font-weight: 500; }
+.zooms button:disabled { opacity: 0.35; cursor: default; }
 .vf canvas.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .hint {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px);
@@ -119,7 +127,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .tip { margin: 0; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tip b { color: var(--accent); font-weight: 600; }
 
-@media (prefers-reduced-motion: reduce) { .vf video { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .vf video, .vf .lens { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
 </style>
 
 <div class="app">
@@ -149,12 +157,13 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 
   <div class="stage" id="stage">
     <div class="vf" id="vf">
-      <video id="video" playsinline muted autoplay hidden></video>
+      <div class="lens" id="lens"><video id="video" playsinline muted autoplay hidden></video></div>
       <canvas class="still" id="still"></canvas>
       <canvas class="overlay" id="overlay"></canvas>
       <div class="tag" id="tag">Sample · not your photo</div>
       <div class="target" id="target" hidden><canvas id="targetThumb"></canvas><span>Target</span></div>
       <div class="hint" id="hint">Tap the shutter to <b>scan</b></div>
+      <div class="zooms" id="zooms" role="group" aria-label="Zoom" hidden></div>
     </div>
   </div>
 
@@ -199,9 +208,20 @@ function toGray(d, n) {
   return g;
 }
 
-// Score every part of a small image for "interest" (edges + colour that stands out + saturation),
-// then try hundreds of crops and return the best one, as fractions of the frame.
-function findBestCrop(d, W, H) {
+// Where a subject's "eye" sits: people are composed by their head, everything else by its centre.
+function focalPoint(s) {
+  if (s.face) return [s.x + s.w / 2, s.y + s.h * 0.4];
+  if (s.kind === "person") return [s.x + s.w / 2, s.y + s.h * 0.14];
+  return [s.x + s.w / 2, s.y + s.h / 2];
+}
+
+// Find the best crop.
+// 1) Score every dot of a small image for "interest" (edges + colour that stands out + saturation).
+// 2) If the AI found subjects (people, faces, animals, objects), reward crops that keep them whole,
+//    put the main one on a rule-of-thirds point, and give it a sensible size — and punish crops that cut them.
+// Returns {x, y, w, h} as fractions of the frame.
+function findBestCrop(d, W, H, subjects) {
+  subjects = subjects || [];
   const N = W * H, L = toGray(d, N), S = new Float32Array(N);
   let mr = 0, mg = 0, mb = 0;
   for (let i = 0; i < N; i++) {
@@ -220,7 +240,7 @@ function findBestCrop(d, W, H) {
   }
   const sal = new Float32Array(N);
   for (let i = 0; i < N; i++) sal[i] = 0.45 * grad[i] / gmax + 0.4 * cd[i] / cmax + 0.15 * S[i];
-  for (let pass = 0; pass < 2; pass++) { // soften so we score regions, not single pixels
+  for (let pass = 0; pass < 2; pass++) { // soften so we score regions, not single dots
     const t = new Float32Array(N);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       let s = 0, n = 0; for (let k = -2; k <= 2; k++) { const xx = x + k; if (xx >= 0 && xx < W) { s += sal[y * W + xx]; n++; } }
@@ -231,7 +251,7 @@ function findBestCrop(d, W, H) {
       sal[y * W + x] = s / n;
     }
   }
-  // summed-area tables make "total interest inside any rectangle" a 4-number lookup
+  // summed-area tables: "total interest inside any rectangle" becomes a 4-number lookup
   const W1 = W + 1, I = new Float64Array(W1 * (H + 1)), IX = new Float64Array(I.length), IY = new Float64Array(I.length);
   for (let y = 0; y < H; y++) { let r = 0, rx = 0, ry = 0;
     for (let x = 0; x < W; x++) { const v = sal[y * W + x]; r += v; rx += v * x; ry += v * y;
@@ -239,18 +259,58 @@ function findBestCrop(d, W, H) {
   const sum = (T, x, y, w, h) => T[(y + h) * W1 + x + w] - T[y * W1 + x + w] - T[(y + h) * W1 + x] + T[y * W1 + x];
   const total = sum(I, 0, 0, W, H) || 1e-6, mean = total / N;
   const thirds = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+  const nearThird = (fx, fy) => { let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(fx - tx, fy - ty)); return Math.max(0, 1 - dmin / 0.3); };
+  const main = subjects.slice().sort((a, b) => b.weight - a.weight)[0];
+  const hasAI = subjects.length > 0;
   let best = null;
-  for (let sc = 0.5; sc <= 0.781; sc += 0.04) {
+  const sLo = hasAI ? 0.4 : 0.5, sHi = hasAI ? 0.921 : 0.781;
+  for (let sc = sLo; sc <= sHi; sc += 0.04) {
     const bw = Math.round(W * sc), bh = Math.round(H * sc);
     for (let y = 0; y <= H - bh; y += 2) for (let x = 0; x <= W - bw; x += 2) {
       const s = sum(I, x, y, bw, bh); if (s <= 0) continue;
       const cx = (sum(IX, x, y, bw, bh) / s - x) / bw, cy = (sum(IY, x, y, bw, bh) / s - y) / bh;
-      let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(cx - tx, cy - ty));
-      const score = (s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + Math.max(0, 1 - dmin / 0.3) * 0.15;
+      let score = ((s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + nearThird(cx, cy) * 0.15) * (hasAI ? 0.5 : 1);
+      if (hasAI) {
+        const bx = x / W, by = y / H, bwN = bw / W, bhN = bh / H;
+        for (const sub of subjects) {
+          const ix = Math.max(0, Math.min(bx + bwN, sub.x + sub.w) - Math.max(bx, sub.x));
+          const iy = Math.max(0, Math.min(by + bhN, sub.y + sub.h) - Math.max(by, sub.y));
+          const ov = (ix * iy) / (sub.w * sub.h);
+          if (ov > 0.03 && ov < 0.97) score -= sub.weight * (sub.face ? 1.2 : 0.7) * Math.min(1, Math.min(ov, 1 - ov) * 4); // cut through
+          else if (ov >= 0.97) score += sub.weight * 0.3;
+        }
+        if (main) {
+          const [fx, fy] = focalPoint(main);
+          if (fx >= bx && fx <= bx + bwN && fy >= by && fy <= by + bhN) {
+            score += main.weight * 0.35 * nearThird((fx - bx) / bwN, (fy - by) / bhN);
+            const fill = (main.w * main.h) / (bwN * bhN);
+            if (fill >= 0.1 && fill <= 0.55) score += main.weight * 0.2;
+            else if (fill > 0.55) score -= main.weight * 0.2 * Math.min(1, (fill - 0.55) * 3); // too tight
+          } else score -= main.weight;
+        }
+      }
       if (!best || score > best.score) best = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
     }
   }
   return best;
+}
+
+// Turn the AI detector's raw results into weighted subjects (fractions of the frame).
+const ANIMALS = ["cat", "dog", "bird", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"];
+function toSubjects(objects, faces, iw, ih) {
+  const out = [];
+  for (const det of objects || []) {
+    const c = det.categories?.[0]; if (!c || c.score < 0.35) continue;
+    const b = det.boundingBox, s = { x: b.originX / iw, y: b.originY / ih, w: b.width / iw, h: b.height / ih, kind: c.categoryName };
+    const area = s.w * s.h; if (area < 0.006 || area > 0.85) continue;
+    s.weight = (s.kind === "person" ? 1 : ANIMALS.includes(s.kind) ? 0.9 : 0.55) * Math.min(1, c.score + 0.3);
+    out.push(s);
+  }
+  for (const det of faces || []) {
+    const b = det.boundingBox, sc = det.categories?.[0]?.score ?? 0.6; if (sc < 0.5) continue;
+    out.push({ x: b.originX / iw, y: b.originY / ih, w: b.width / iw, h: b.height / ih, kind: "face", face: true, weight: 1.1 });
+  }
+  return out.sort((a, b) => b.weight * Math.sqrt(b.w * b.h) - a.weight * Math.sqrt(a.w * a.h)).slice(0, 6);
 }
 
 // Pick a film look from the scene's light and colour.
@@ -262,14 +322,12 @@ function chooseLook(d, n) {
     sl += l; sl2 += l * l; ss += mx ? (mx - mn) / mx : 0; warm += r - b;
   }
   const L = sl / n, sd = Math.sqrt(Math.max(0, sl2 / n - L * L)), sat = ss / n, w = warm / n;
-  let look, why;
-  if (L < 70) { look = "mono"; why = "low light"; }
-  else if (sat < 0.14) { look = "mono"; why = "muted colours"; }
-  else if (sd > 68) { look = "faded"; why = "harsh contrast"; }
-  else if (w > 14) { look = "golden"; why = "warm light"; }
-  else if (w < -14) { look = "slate"; why = "cool tones"; }
-  else { look = "golden"; why = "even light"; }
-  return { look, why };
+  if (L < 70) return { look: "mono", why: "low light" };
+  if (sat < 0.14) return { look: "mono", why: "muted colours" };
+  if (sd > 68) return { look: "faded", why: "harsh contrast" };
+  if (w > 14) return { look: "golden", why: "warm light" };
+  if (w < -14) return { look: "slate", why: "cool tones" };
+  return { look: "golden", why: "even light" };
 }
 
 // Build a grey, zero-mean version of the target so it can be matched in any lighting.
@@ -282,7 +340,6 @@ function makeTemplate(gray, tw, th) {
 
 // Find where a template sits in a live frame (normalised cross-correlation),
 // trying several sizes because the person may step closer or further away.
-// Returns {x, y, w, h (fractions), score 0..1, idx (which size matched)}.
 function matchTemplates(G, W, H, tpls, hintIdx) {
   const W1 = W + 1, S = new Float64Array(W1 * (H + 1)), S2 = new Float64Array(S.length);
   for (let y = 0; y < H; y++) { let r = 0, r2 = 0;
@@ -307,7 +364,7 @@ function matchTemplates(G, W, H, tpls, hintIdx) {
     }
   }
   if (best.score < -1) return null;
-  const tp = tpls[best.idx]; // refine to the exact pixel
+  const tp = tpls[best.idx];
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
     const x = best.x + dx, y = best.y + dy; if (x < 0 || y < 0 || x > W - tp.tw || y > H - tp.th) continue;
     const s = ncc(tp, x, y); if (s > best.score) best = { score: s, x, y, idx: best.idx };
@@ -315,8 +372,46 @@ function matchTemplates(G, W, H, tpls, hintIdx) {
   return { x: best.x / W, y: best.y / H, w: tp.tw / W, h: tp.th / H, score: best.score, idx: best.idx };
 }
 
-// Auto exposure: stretch the darkest/brightest 1% to full range, then nudge the middle tones.
-function autoLevelsLUT(d, n) {
+// Motion sensors: learns how turning the phone (gyroscope) moves the box on screen,
+// then uses that to move the box smoothly between the slower picture-matching steps.
+// It learns the link itself, so it works whatever the zoom or the phone's sensor directions.
+function makeMotionModel() {
+  const A = [[1e-3, 0, 0], [0, 1e-3, 0], [0, 0, 1e-3]], bx = [0, 0, 0], by = [0, 0, 0];
+  let n = 0;
+  const solve = (M, v) => { // 3x3 linear solve (Cramer's rule)
+    const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const D = det(M); if (Math.abs(D) < 1e-12) return [0, 0, 0];
+    return [0, 1, 2].map((c) => det(M.map((row, r) => row.map((x, k) => (k === c ? v[r] : x)))) / D);
+  };
+  let kx = [0, 0, 0], ky = [0, 0, 0];
+  return {
+    learn(g, dx, dy) { // g = [Δalpha, Δbeta, Δgamma] in degrees; dx, dy = measured box shift
+      if (Math.hypot(g[0], g[1], g[2]) < 0.05) return;
+      for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) A[i][j] = A[i][j] * 0.97 + g[i] * g[j]; bx[i] = bx[i] * 0.97 + g[i] * dx; by[i] = by[i] * 0.97 + g[i] * dy; }
+      n++; kx = solve(A, bx); ky = solve(A, by);
+    },
+    predict(g) {
+      if (n < 12) return [0, 0];
+      const px = kx[0] * g[0] + kx[1] * g[1] + kx[2] * g[2], py = ky[0] * g[0] + ky[1] * g[1] + ky[2] * g[2];
+      return [Math.max(-0.3, Math.min(0.3, px)), Math.max(-0.3, Math.min(0.3, py))];
+    },
+    reset() { n = 0; kx = [0, 0, 0]; ky = [0, 0, 0]; for (let i = 0; i < 3; i++) { bx[i] = by[i] = 0; for (let j = 0; j < 3; j++) A[i][j] = i === j ? 1e-3 : 0; } },
+    get ready() { return n >= 12; },
+  };
+}
+
+// Film looks, defined like a photo editor: tone curve, fade, colour temperature,
+// split toning (colour in shadows / highlights), saturation, grain and halation glow.
+const LOOK_PARAMS = {
+  natural: { contrast: 0.06, fade: 0, roll: 0, temp: 0, tint: 0, sh: [0, 0, 0], hi: [0, 0, 0], sat: 1.06, grain: 0, halation: 0, vignette: 0.1 },
+  golden:  { contrast: 0.14, fade: 8, roll: 10, temp: 10, tint: 2, sh: [6, 2, -6], hi: [8, 4, -8], sat: 1.12, grain: 7, halation: 0.35, vignette: 0.24 },
+  slate:   { contrast: 0.18, fade: 6, roll: 6, temp: -8, tint: -2, sh: [-6, 2, 8], hi: [6, 2, -4], sat: 0.72, grain: 6, halation: 0.12, vignette: 0.22 },
+  mono:    { contrast: 0.26, fade: 4, roll: 4, temp: 0, tint: 0, sh: [0, 0, 0], hi: [0, 0, 0], sat: 0, grain: 11, halation: 0, vignette: 0.28 },
+  faded:   { contrast: -0.04, fade: 28, roll: 20, temp: 4, tint: 3, sh: [4, 0, 8], hi: [6, 4, 0], sat: 0.86, grain: 6, halation: 0.22, vignette: 0.18 },
+};
+
+// One lookup table per colour channel: auto-exposure + the look's curve and colour.
+function buildLUTs(d, n, P) {
   const hist = new Uint32Array(256); let cnt = 0;
   for (let i = 0; i < n; i += 4) { hist[(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) | 0]++; cnt++; }
   let acc = 0, lo = 0, hi = 255, sum = 0;
@@ -326,9 +421,17 @@ function autoLevelsLUT(d, n) {
   for (let v = 0; v < 256; v++) sum += hist[v] * Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
   const mid = Math.min(0.95, Math.max(0.05, sum / cnt));
   const gamma = Math.min(1.35, Math.max(0.75, Math.log(0.47) / Math.log(mid)));
-  const lut = new Uint8ClampedArray(256);
-  for (let v = 0; v < 256; v++) lut[v] = 255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), gamma);
-  return lut;
+  const luts = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
+  const shift = [P.temp + P.tint * 0.3, -P.tint, -P.temp];
+  for (let v = 0; v < 256; v++) {
+    let t = Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), gamma);
+    const s = t * t * (3 - 2 * t); t = t + P.contrast * 2 * (s - t);                 // S-curve
+    const top = 255 - P.roll, bottom = P.fade;                                        // faded blacks, soft highlights
+    const base = bottom + t * (top - bottom);
+    const ws = (1 - t) * (1 - t), wh = t * t;                                        // shadow / highlight weights
+    for (let c = 0; c < 3; c++) luts[c][v] = base + shift[c] + P.sh[c] * ws + P.hi[c] * wh;
+  }
+  return luts;
 }
 
 /* ======================================================================
@@ -337,36 +440,80 @@ function autoLevelsLUT(d, n) {
 (() => {
   if (typeof document === "undefined") return;
   const $ = (s) => document.querySelector(s);
-  const video = $("#video"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
+  const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
+  const VERSION = "v6";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
-    natural: { label: "Natural", css: "none", fn: null },
-    golden:  { label: "Golden", css: "sepia(.22) saturate(1.2) contrast(1.04) brightness(1.03)",
-               fn: (r, g, b) => [r * 1.05 + 10, g + 5, b * 0.86 + 2] },
-    slate:   { label: "Slate", css: "saturate(.65) contrast(1.06) brightness(.97) hue-rotate(-6deg)",
-               fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; return [(l + (r - l) * 0.65) * 0.97 - 3, (l + (g - l) * 0.65) * 0.98, (l + (b - l) * 0.65) * 0.98 + 8]; } },
-    mono:    { label: "Mono", css: "grayscale(1) contrast(1.18)",
-               fn: (r, g, b) => { const l = (0.3 * r + 0.59 * g + 0.11 * b - 128) * 1.18 + 128; return [l, l, l]; } },
-    faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)",
-               fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; const f = (v) => 22 + (l + (v - l) * 0.85) * 0.86; return [f(r), f(g), f(b)]; } },
+    natural: { label: "Natural", css: "none" },
+    golden:  { label: "Golden", css: "sepia(.22) saturate(1.2) contrast(1.06) brightness(1.03)" },
+    slate:   { label: "Slate", css: "saturate(.7) contrast(1.08) brightness(.97) hue-rotate(-6deg)" },
+    mono:    { label: "Mono", css: "grayscale(1) contrast(1.22)" },
+    faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)" },
   };
+  const ZOOMS = [0.5, 1, 2, 4, 6];
   const SCAN_MS = 5000, HOLD_MS = 1400;
   const SCAN_STEPS = ["Reading the light", "Finding the subject", "Choosing a look", "Marking the shot"];
+  const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+  const OBJ_MODEL = "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite";
+  const FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite";
 
   const state = {
-    source: "sample",          // sample | still | live
-    phase: "idle",             // idle | scanning | aiming | ready
-    aspectIdx: 0, look: "auto", auto: null, grid: true, stamp: true,
-    img: null,                 // the still image (sample or photo)
-    ref: null,                 // frozen frame used for the scan
-    box: null,                 // target box, as fractions of the frame
+    source: "sample", phase: "idle", aspectIdx: 0, look: "auto", auto: null, grid: true, stamp: true,
+    img: null, ref: null, box: null, subject: "", analyzing: null,
     tpls: null, track: null, trackIdx: null, lastTrack: 0, alignedSince: 0, lostSince: 0,
     scanStart: 0, scanTimer: null, stream: null, lastShot: null, claudeTip: "",
+    zoom: 1, lensKind: "wide", cams: { wide: null, ultra: null }, zoomed: false,
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
   const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
+
+  /* ---------- free on-device AI (Google MediaPipe) ---------- */
+  const ai = { status: "off", obj: null, face: null };
+  async function loadAI() {
+    if (ai.status !== "off") return;
+    ai.status = "loading"; setReadout();
+    try {
+      const v = await import(MP + "/vision_bundle.mjs");
+      const files = await v.FilesetResolver.forVisionTasks(MP + "/wasm");
+      ai.obj = await v.ObjectDetector.createFromOptions(files, {
+        baseOptions: { modelAssetPath: OBJ_MODEL, delegate: "CPU" }, runningMode: "IMAGE", scoreThreshold: 0.35, maxResults: 8,
+      });
+      try {
+        ai.face = await v.FaceDetector.createFromOptions(files, {
+          baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" }, runningMode: "IMAGE", minDetectionConfidence: 0.5,
+        });
+      } catch (e) { ai.face = null; }
+      ai.status = "ready";
+    } catch (e) { ai.status = "failed"; }
+    setReadout();
+  }
+  function detectSubjects(canvas) {
+    if (ai.status !== "ready") return [];
+    try {
+      const objs = ai.obj.detect(canvas).detections;
+      const faces = ai.face ? ai.face.detect(canvas).detections : [];
+      return toSubjects(objs, faces, canvas.width, canvas.height);
+    } catch (e) { return []; }
+  }
+
+  /* ---------- motion sensors (optional; iPhone asks permission) ---------- */
+  const motion = { on: false, g: [0, 0, 0], last: 0, atMatch: null, model: makeMotionModel() };
+  async function enableMotion() {
+    try {
+      const DM = window.DeviceMotionEvent;
+      if (!DM) return;
+      if (typeof DM.requestPermission === "function") { if ((await DM.requestPermission()) !== "granted") return; }
+      if (motion.on) return;
+      motion.on = true;
+      window.addEventListener("devicemotion", (e) => {
+        const r = e.rotationRate; if (!r) return;
+        const now = performance.now(), dt = motion.last ? Math.min(0.1, (now - motion.last) / 1000) : 0; motion.last = now;
+        motion.g[0] += (r.alpha || 0) * dt; motion.g[1] += (r.beta || 0) * dt; motion.g[2] += (r.gamma || 0) * dt;
+      });
+    } catch (e) { /* no sensors: picture matching alone still works */ }
+  }
 
   /* ---------- sample scene so the app opens in a working state ---------- */
   function makeSample() {
@@ -394,10 +541,13 @@ function autoLevelsLUT(d, n) {
     if (src instanceof HTMLImageElement) return [src.naturalWidth, src.naturalHeight];
     return [src.width, src.height];
   }
-  function drawCover(ctx, src, w, h) { // same as CSS object-fit: cover
+  // Same as CSS object-fit: cover, plus the digital zoom for the live camera.
+  function drawCover(ctx, src, w, h) {
     const [sw, sh] = srcSize(src); if (!sw || !sh) return false;
+    const z = src === video ? state.zoom : 1;
     const a = w / h; let cw = sw, ch = sw / a;
     if (ch > sh) { ch = sh; cw = sh * a; }
+    cw /= z; ch /= z;
     ctx.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, h);
     return true;
   }
@@ -410,10 +560,10 @@ function autoLevelsLUT(d, n) {
   }
   const currentSrc = () => (state.source === "live" ? video : state.img);
   // Freeze what the camera (or photo) sees right now, cropped to the photo shape.
-  function freeze(src) {
-    const [sw, sh] = srcSize(src), a = aspect();
-    let w = Math.min(sw, sh * a), h = w / a; const k = Math.min(1, 1600 / Math.max(w, h));
-    const c = document.createElement("canvas"); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  function freeze(src, maxSide = 1600) {
+    const [sw, sh] = srcSize(src), a = aspect(), z = src === video ? state.zoom : 1;
+    let w = Math.min(sw, sh * a) / z, h = w / a; const k = Math.min(1, maxSide / Math.max(w, h));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
     drawCover(c.getContext("2d"), src, c.width, c.height);
     return c;
   }
@@ -428,8 +578,8 @@ function autoLevelsLUT(d, n) {
     showStill();
   }
   function showStill() {
-    const src = state.phase === "scanning" || state.phase === "ready" ? state.ref || state.img : state.img;
     if (state.source === "live") return; // the live camera is never frozen on screen
+    const src = state.phase === "scanning" || state.phase === "ready" ? state.ref || state.img : state.img;
     if (!src) return;
     const w = Math.min(1200, overlay.width || 600), h = Math.round(w / aspect());
     still.width = w; still.height = h; drawCover(still.getContext("2d"), src, w, h);
@@ -441,10 +591,13 @@ function autoLevelsLUT(d, n) {
     still.style.filter = css;
     video.style.filter = state.zoomed ? css : "none";
   }
-  function setZoom(t) {
+  function setLensZoom() { lens.style.transform = state.zoom === 1 ? "" : `scale(${state.zoom})`; }
+  function setZoom(t) { // lock-on zoom: makes the target box fill the viewfinder
     if (t) {
       const k = Math.min(3, 1 / Math.max(t.w, t.h));
-      video.style.transformOrigin = `${(t.x + t.w / 2) * 100}% ${(t.y + t.h / 2) * 100}%`;
+      // the box is measured in what you see (already digitally zoomed); convert to the video's own coordinates
+      const ox = 0.5 + (t.x + t.w / 2 - 0.5) / state.zoom, oy = 0.5 + (t.y + t.h / 2 - 0.5) / state.zoom;
+      video.style.transformOrigin = `${ox * 100}% ${oy * 100}%`;
       video.style.transform = `scale(${k.toFixed(3)})`;
       state.zoomed = true;
     } else { video.style.transform = ""; state.zoomed = false; }
@@ -460,10 +613,24 @@ function autoLevelsLUT(d, n) {
     for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { c.moveTo(px, py + sy * t); c.lineTo(px, py); c.lineTo(px + sx * t, py); }
     c.stroke();
   }
+  function label(c, text, x, y, dpr, color) {
+    c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center";
+    const tw = c.measureText(text).width + 14 * dpr;
+    c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(x - tw / 2, y - 13 * dpr, tw, 18 * dpr);
+    c.fillStyle = color; c.fillText(text, x, y);
+  }
+  // Box shown on screen = last match + motion-sensor nudge since then.
+  function shownTrack() {
+    const t = state.track; if (!t) return null;
+    if (!motion.on || !motion.atMatch || !motion.model.ready) return t;
+    const g = motion.g, m = motion.atMatch;
+    const [px, py] = motion.model.predict([g[0] - m[0], g[1] - m[1], g[2] - m[2]]);
+    return { ...t, x: t.x + px, y: t.y + py };
+  }
   function drawOverlay(now) {
     const c = overlay.getContext("2d"), W = overlay.width, H = overlay.height, dpr = window.devicePixelRatio || 1;
     c.clearRect(0, 0, W, H);
-    if (state.grid && state.phase !== "scanning") {
+    if (state.grid && state.phase !== "scanning" && !(state.phase === "aiming" && state.alignedSince)) {
       c.strokeStyle = "rgba(255,255,255,.3)"; c.lineWidth = dpr; c.beginPath();
       for (const f of [1 / 3, 2 / 3]) { c.moveTo(W * f, 0); c.lineTo(W * f, H); c.moveTo(0, H * f); c.lineTo(W, H * f); }
       c.stroke();
@@ -471,58 +638,51 @@ function autoLevelsLUT(d, n) {
     if (state.phase === "scanning") {
       const p = Math.min(1, (now - state.scanStart) / SCAN_MS);
       c.fillStyle = "rgba(0,0,0,.14)"; c.fillRect(0, 0, W, H);
-      // dotted measuring grid
       c.fillStyle = "rgba(255,255,255,.35)";
       for (let gy = 1; gy < 12; gy++) for (let gx = 1; gx < 9; gx++) c.fillRect((gx / 9) * W - dpr, (gy / 12) * H - dpr, 2 * dpr, 2 * dpr);
-      // sweeping scan line
       const y = (((now - state.scanStart) % 1250) / 1250) * H;
       const g = c.createLinearGradient(0, y - 60 * dpr, 0, y);
       g.addColorStop(0, "rgba(240,180,41,0)"); g.addColorStop(1, "rgba(240,180,41,.35)");
       c.fillStyle = g; c.fillRect(0, y - 60 * dpr, W, 60 * dpr);
       c.fillStyle = accent(); c.fillRect(0, y - dpr, W, 2 * dpr);
-      // the box fades in once it's found; on the live camera it already follows the scene
-      const sb = state.source === "live" ? (state.track && state.track.score > 0.65 ? state.track : null) : state.box;
-      if (sb && p > 0.5) { c.globalAlpha = Math.min(1, (p - 0.5) / 0.25); drawBox(c, sb, W, H, dpr, accent(), false); c.globalAlpha = 1; }
+      const st = shownTrack();
+      const sb = state.source === "live" ? (st && st.score > 0.65 ? st : null) : state.box;
+      if (sb && p > 0.5) {
+        c.globalAlpha = Math.min(1, (p - 0.5) / 0.25); drawBox(c, sb, W, H, dpr, accent(), false);
+        if (state.subject) label(c, state.subject.toUpperCase(), (sb.x + sb.w / 2) * W, sb.y * H + 22 * dpr, dpr, accent());
+        c.globalAlpha = 1;
+      }
       c.fillStyle = accent(); c.fillRect(0, H - 4 * dpr, W * p, 4 * dpr);
       return;
     }
-    if (state.phase === "ready" && state.box) drawBox(c, state.box, W, H, dpr, accent(), true);
+    if (state.phase === "ready" && state.box) {
+      drawBox(c, state.box, W, H, dpr, accent(), true);
+      if (state.subject) label(c, state.subject.toUpperCase(), (state.box.x + state.box.w / 2) * W, state.box.y * H + 22 * dpr, dpr, accent());
+    }
     if (state.phase === "aiming") {
-      const cx = W / 2, cy = H / 2, tb = state.track, ok = tb && tb.score > 0.65, aligned = ok && !!state.alignedSince;
-      if (aligned) {
-        // zoomed onto the shot: the whole viewfinder is now the photo
+      const cx = W / 2, cy = H / 2, tb = shownTrack(), ok = tb && tb.score > 0.65, aligned = ok && !!state.alignedSince;
+      if (aligned) { // zoomed onto the shot: the whole viewfinder is now the photo
         drawBox(c, { x: 0.03, y: 0.03, w: 0.94, h: 0.94 }, W, H, dpr, "#ffffff", false);
         const p = Math.min(1, (now - state.alignedSince) / HOLD_MS);
         c.fillStyle = "#ffffff"; c.fillRect(0, H - 5 * dpr, W * p, 5 * dpr);
-        c.font = `500 ${11 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center";
-        const label = `${LOOKS[lookKey()].label.toUpperCase()} · ${(1 / Math.max(tb.w, tb.h)).toFixed(1)}×`;
-        const tw = c.measureText(label).width + 20 * dpr;
-        c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(cx - tw / 2, 18 * dpr, tw, 22 * dpr);
-        c.fillStyle = "#ffffff"; c.fillText(label, cx, 33 * dpr);
+        const total = state.zoom * (1 / Math.max(tb.w, tb.h));
+        label(c, `${LOOKS[lookKey()].label.toUpperCase()} · ${total.toFixed(1)}×`, cx, 34 * dpr, dpr, "#ffffff");
         return;
       }
       if (ok) {
-        drawBox(c, tb, W, H, dpr, aligned ? "#ffffff" : accent(), true);
+        drawBox(c, tb, W, H, dpr, accent(), true);
         const bx = (tb.x + tb.w / 2) * W, by = (tb.y + tb.h / 2) * H;
-        // the best spot: a pulsing "aim here" ring at the centre of the shot
         const pulse = 0.5 + 0.5 * Math.sin(now / 220), R = (22 + 6 * pulse) * dpr;
-        c.strokeStyle = aligned ? "#ffffff" : accent(); c.lineWidth = 2.5 * dpr;
+        c.strokeStyle = accent(); c.lineWidth = 2.5 * dpr;
         c.beginPath(); c.arc(bx, by, R, 0, 7); c.stroke();
-        c.globalAlpha = 0.25 + 0.2 * pulse; c.fillStyle = c.strokeStyle; c.beginPath(); c.arc(bx, by, R, 0, 7); c.fill(); c.globalAlpha = 1;
-        if (!aligned) {
-          c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center"; c.fillStyle = accent();
-          c.fillText("AIM HERE", bx, by - R - 6 * dpr);
-          // dashed path from your crosshair to the spot
-          c.setLineDash([6 * dpr, 6 * dpr]); c.strokeStyle = accent(); c.lineWidth = 2 * dpr;
-          c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
-        } else { // hold-steady progress along the box bottom
-          const p = Math.min(1, (now - state.alignedSince) / 900);
-          c.fillStyle = "#ffffff"; c.fillRect(tb.x * W, (tb.y + tb.h) * H - 5 * dpr, tb.w * W * p, 5 * dpr);
-        }
+        c.globalAlpha = 0.25 + 0.2 * pulse; c.fillStyle = accent(); c.beginPath(); c.arc(bx, by, R, 0, 7); c.fill(); c.globalAlpha = 1;
+        c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center"; c.fillStyle = accent();
+        c.fillText("AIM HERE", bx, by - R - 6 * dpr);
+        c.setLineDash([6 * dpr, 6 * dpr]); c.lineWidth = 2 * dpr;
+        c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
       }
-      // your crosshair: always the middle of the screen — move the phone to put it in the ring
-      const r = 14 * dpr;
-      c.strokeStyle = aligned ? "#ffffff" : "rgba(255,255,255,.95)"; c.lineWidth = 2 * dpr; c.beginPath();
+      const r = 14 * dpr; // your crosshair: always the middle of the screen
+      c.strokeStyle = "rgba(255,255,255,.95)"; c.lineWidth = 2 * dpr; c.beginPath();
       c.moveTo(cx - r, cy); c.lineTo(cx - 4 * dpr, cy); c.moveTo(cx + 4 * dpr, cy); c.lineTo(cx + r, cy);
       c.moveTo(cx, cy - r); c.lineTo(cx, cy - 4 * dpr); c.moveTo(cx, cy + 4 * dpr); c.lineTo(cx, cy + r); c.stroke();
     }
@@ -540,35 +700,44 @@ function autoLevelsLUT(d, n) {
   function startScan() {
     const src = currentSrc();
     if (!src || (state.source === "live" && !video.videoWidth)) return;
-    state.claudeTip = ""; state.box = null; state.tpls = null; state.ref = null;
-    state.track = null; state.trackIdx = null; state.alignedSince = 0; state.lostSince = 0;
+    state.claudeTip = ""; state.box = null; state.tpls = null; state.ref = null; state.subject = ""; state.analyzing = null;
+    state.track = null; state.trackIdx = null; state.alignedSince = 0; state.lostSince = 0; motion.atMatch = null;
     state.scanStart = performance.now(); setPhase("scanning");
-    if (state.source === "live") { video.hidden = false; still.hidden = true; } // camera stays live while scanning
-    else { analyzeRef(src); still.hidden = false; showStill(); }
+    if (state.source === "live") { video.hidden = false; still.hidden = true; }
+    else { state.analyzing = analyzeRef(src); still.hidden = false; showStill(); }
     let step = 0; setStatus(SCAN_STEPS[0] + "…");
     clearInterval(state.scanTimer);
     state.scanTimer = setInterval(() => {
+      const el = performance.now() - state.scanStart;
       // live: read the scene part-way through, so the box matches where you're pointing now
-      if (state.source === "live" && !state.box && performance.now() - state.scanStart >= SCAN_MS * 0.4) { analyzeRef(video); buildTemplates(); }
-      const left = Math.ceil((SCAN_MS - (performance.now() - state.scanStart)) / 1000);
-      hint.innerHTML = `Scanning · <b>${Math.max(0, left)}</b>`;
-      const s = Math.min(SCAN_STEPS.length - 1, Math.floor(((performance.now() - state.scanStart) / SCAN_MS) * SCAN_STEPS.length));
-      if (s !== step) { step = s; setStatus(SCAN_STEPS[s] + (s === 2 && state.auto ? ` · ${LOOKS[state.auto.look].label} for ${state.auto.why}` : "…")); }
-      if (performance.now() - state.scanStart >= SCAN_MS) { clearInterval(state.scanTimer); finishScan(); }
+      if (state.source === "live" && !state.analyzing && el >= SCAN_MS * 0.35) state.analyzing = analyzeRef(video).then(buildTemplates);
+      hint.innerHTML = `Scanning · <b>${Math.max(0, Math.ceil((SCAN_MS - el) / 1000))}</b>`;
+      const s = Math.min(SCAN_STEPS.length - 1, Math.floor((el / SCAN_MS) * SCAN_STEPS.length));
+      if (s !== step) {
+        step = s;
+        const extra = s === 1 && state.subject ? ` · ${state.subject}` : s === 2 && state.auto ? ` · ${LOOKS[state.auto.look].label} for ${state.auto.why}` : "…";
+        setStatus(SCAN_STEPS[s] + extra);
+      }
+      if (el >= SCAN_MS) { clearInterval(state.scanTimer); finishScan(); }
     }, 100);
     hint.innerHTML = `Scanning · <b>5</b>`;
   }
-  function analyzeRef(src) {
-    state.ref = freeze(src);
+  async function analyzeRef(src) {
+    const ref = freeze(src); state.ref = ref;
+    await new Promise((r) => setTimeout(r, 0)); // let the screen update first
+    const subjects = detectSubjects(ref);
     const a = aspect(), W = 72, H = Math.round(W / a);
-    state.box = findBestCrop(pixels(state.ref, W, H), W, H);
-    state.auto = chooseLook(pixels(state.ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
+    state.box = findBestCrop(pixels(ref, W, H), W, H, subjects);
+    const main = subjects.find((s) => s.x >= state.box.x - 0.02 && s.x + s.w <= state.box.x + state.box.w + 0.02);
+    state.subject = main ? (main.kind === "face" ? "face" : main.kind) : "";
+    state.auto = chooseLook(pixels(ref, 48, Math.round(48 / a)), 48 * Math.round(48 / a));
     refreshLookChips(); applyPreviewLook();
   }
-  function finishScan() {
+  async function finishScan() {
     if (state.source === "live") {
-      if (!state.box) analyzeRef(video);
-      if (!state.tpls) buildTemplates();
+      if (!state.analyzing) state.analyzing = analyzeRef(video).then(buildTemplates);
+      await state.analyzing;
+      if (state.phase !== "scanning") return; // cancelled meanwhile
       const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
       tc.width = 128; tc.height = Math.round(128 / aspect());
       tc.getContext("2d").drawImage(state.ref, b.x * rw, b.y * rh, b.w * rw, b.h * rh, 0, 0, tc.width, tc.height);
@@ -577,6 +746,8 @@ function autoLevelsLUT(d, n) {
       setPhase("aiming");
       setStatus("Move your phone until the crosshair sits in the AIM HERE ring. It shoots when you line up.");
     } else {
+      await state.analyzing;
+      if (state.phase !== "scanning") return;
       setPhase("ready");
       hint.innerHTML = "Shot <b>found</b> · tap ✓";
       setStatus(askAvailable ? "Tap ✓ to develop it, or ask Claude for its own framing." : "Tap ✓ to develop the framed shot.");
@@ -594,22 +765,28 @@ function autoLevelsLUT(d, n) {
     function tpl(tw, th) { return makeTemplate(toGray(pixels(state.ref, tw, th, b), tw * th), tw, th); }
   }
   function trackStep(now) {
-    if (now - state.lastTrack < 90 || !video.videoWidth || !state.tpls?.length) return;
+    if (now - state.lastTrack < 70 || !video.videoWidth || !state.tpls?.length) return;
     state.lastTrack = now;
     const TH = Math.round(TW / aspect());
     const G = toGray(pixels(video, TW, TH), TW * TH);
     let m = matchTemplates(G, TW, TH, state.tpls, state.trackIdx);
-    if ((!m || m.score < 0.65) && state.trackIdx != null) m = matchTemplates(G, TW, TH, state.tpls, null); // search all sizes again
+    if ((!m || m.score < 0.65) && state.trackIdx != null) m = matchTemplates(G, TW, TH, state.tpls, null);
     if (!m || m.score < 0.65) {
       state.trackIdx = null;
       if (state.alignedSince) { state.alignedSince = 0; setZoom(null); }
       if (!state.lostSince) state.lostSince = now;
-      if (now - state.lostSince > 400) { state.track = null; if (state.phase === "aiming") hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
+      if (now - state.lostSince > 400) { state.track = null; motion.atMatch = null; if (state.phase === "aiming") hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
       return;
     }
     state.lostSince = 0; state.trackIdx = m.idx;
-    if (!state.track) state.track = m;
-    else for (const k of ["x", "y", "w", "h", "score"]) state.track[k] += (m[k] - state.track[k]) * 0.5;
+    // teach the motion model: how far did the box move for how much the phone turned?
+    if (motion.on && state.track && motion.atMatch) {
+      const g = motion.g, a = motion.atMatch;
+      motion.model.learn([g[0] - a[0], g[1] - a[1], g[2] - a[2]], m.x - state.prevMatch.x, m.y - state.prevMatch.y);
+    }
+    state.prevMatch = { x: m.x, y: m.y }; motion.atMatch = motion.g.slice();
+    if (!state.track) state.track = { ...m };
+    else for (const k of ["x", "y", "w", "h", "score"]) state.track[k] += (m[k] - state.track[k]) * 0.6;
     if (state.phase === "aiming") guide(now);
   }
   function guide(now) {
@@ -629,22 +806,38 @@ function autoLevelsLUT(d, n) {
     if (now - state.alignedSince > HOLD_MS) capture();
   }
 
-  /* ---------- developing ---------- */
+  /* ---------- developing (the "darkroom") ---------- */
   function develop(src, crop) {
-    const base = freeze(src), w = base.width, h = base.height, bx = base.getContext("2d");
+    const base = freeze(src, 3000), w = base.width, h = base.height, bx = base.getContext("2d");
+    const key = lookKey(), P = LOOK_PARAMS[key];
     const img = bx.getImageData(0, 0, w, h), p = img.data, n = w * h;
-    const lut = autoLevelsLUT(p, n), key = lookKey(), fn = LOOKS[key].fn;
+    const [lr, lg, lb] = buildLUTs(p, n, P), sat = P.sat, gr = P.grain;
     for (let i = 0; i < p.length; i += 4) {
-      let r = lut[p[i]], g = lut[p[i + 1]], b = lut[p[i + 2]];
-      if (fn) { const nz = (Math.random() - 0.5) * 12; [r, g, b] = fn(r, g, b); r += nz; g += nz; b += nz; }
+      let r = lr[p[i]], g = lg[p[i + 1]], b = lb[p[i + 2]];
+      const l = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
+      if (gr) { const nz = (Math.random() - 0.5) * gr * 2 * (1 - Math.abs(l / 255 - 0.5) * 1.2); r += nz; g += nz; b += nz; } // grain shows most in mid-tones
       p[i] = r; p[i + 1] = g; p[i + 2] = b;
     }
     bx.putImageData(img, 0, 0);
+    if (P.halation) { // halation: a soft red-orange glow around bright lights, like real film
+      const sw = Math.max(8, Math.round(w / 24)), sh = Math.max(8, Math.round(h / 24));
+      const sc = document.createElement("canvas"); sc.width = sw; sc.height = sh;
+      const sx = sc.getContext("2d"); sx.drawImage(base, 0, 0, sw, sh);
+      const sd = sx.getImageData(0, 0, sw, sh), q = sd.data;
+      for (let i = 0; i < q.length; i += 4) {
+        const l = 0.299 * q[i] + 0.587 * q[i + 1] + 0.114 * q[i + 2], k = Math.max(0, (l - 200) / 55);
+        q[i] = 255 * k; q[i + 1] = 90 * k; q[i + 2] = 40 * k;
+      }
+      sx.putImageData(sd, 0, 0);
+      bx.save(); bx.globalCompositeOperation = "screen"; bx.globalAlpha = P.halation; bx.imageSmoothingQuality = "high";
+      bx.drawImage(sc, 0, 0, w, h); bx.restore();
+    }
     const out = (cx, cy, cw, ch) => {
       const c = document.createElement("canvas"); c.width = Math.round(cw); c.height = Math.round(ch);
-      const x = c.getContext("2d"); x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
+      const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
       const v = x.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * 0.35, c.width / 2, c.height / 2, Math.hypot(c.width, c.height) / 2);
-      v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${key === "natural" ? 0.1 : 0.24})`);
+      v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${P.vignette})`);
       x.fillStyle = v; x.fillRect(0, 0, c.width, c.height);
       if (state.stamp) {
         const d = new Date(), pad = (k) => String(k).padStart(2, "0");
@@ -673,13 +866,15 @@ function autoLevelsLUT(d, n) {
       const src = live ? video : state.ref;
       const crop = live ? (state.track && state.track.score > 0.65 ? state.track : null) : state.box;
       vf.animate?.([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240 });
+      setStatus("Developing…");
+      await new Promise((r) => setTimeout(r, 30));
       const { full, framed } = develop(src, crop);
       const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
       if (state.lastShot) { URL.revokeObjectURL(state.lastShot.framedUrl); URL.revokeObjectURL(state.lastShot.fullUrl); }
       state.lastShot = { framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb), tip: state.claudeTip,
-        look: LOOKS[lookKey()].label + (state.look === "auto" && state.auto ? ` · auto for ${state.auto.why}` : "") };
+        look: LOOKS[lookKey()].label + (state.look === "auto" && state.auto ? ` · auto for ${state.auto.why}` : "") + (state.subject ? ` · ${state.subject}` : "") };
       $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
-      resetToIdle(); openSheet();
+      resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
     } finally { capturing = false; }
   }
 
@@ -703,17 +898,18 @@ function autoLevelsLUT(d, n) {
     $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo, then choose Save to Photos.";
   }));
 
-  /* ---------- sources ---------- */
+  /* ---------- cameras and zoom ---------- */
   function setReadout() {
     const [a, b] = ASPECTS[state.aspectIdx];
     const src = { live: "Live", still: "Photo", sample: "Sample" }[state.source];
     const ph = { idle: "", scanning: " · Scanning", aiming: " · Aiming", ready: " · Found" }[state.phase];
-    readout.textContent = `${a}:${b} · ${src}${ph} · v5`;
+    const aiTxt = { off: "", loading: " · AI…", ready: " · AI", failed: " · Basic" }[ai.status];
+    readout.textContent = `${a}:${b} · ${src}${ph}${aiTxt} · ${VERSION}`;
   }
   function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
   function resetToIdle() {
     clearInterval(state.scanTimer);
-    state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0;
+    state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0; state.analyzing = null; motion.atMatch = null;
     setPhase("idle"); setZoom(null);
     if (state.source === "live") { video.hidden = false; still.hidden = true; }
     else { video.hidden = true; still.hidden = false; showStill(); }
@@ -721,24 +917,69 @@ function autoLevelsLUT(d, n) {
   }
   function useStill(img, kind) {
     stopCamera(); state.source = kind; state.img = img; state.ref = null; tag.hidden = kind !== "sample";
+    $("#zooms").hidden = true; vf.classList.remove("has-zoom"); state.zoom = 1; setLensZoom();
     resetToIdle();
   }
   function stopCamera() {
     if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
     state.stream = null; video.srcObject = null; $("#camLabel").textContent = "Live camera";
   }
+  // Find the iPhone's separate lenses (names appear once camera permission is given).
+  async function findLenses() {
+    try {
+      const list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+      state.cams.ultra = list.find((d) => /ultra ?wide/i.test(d.label))?.deviceId || null;
+      state.cams.wide = list.find((d) => /^back camera$/i.test(d.label.trim()))?.deviceId
+        || list.find((d) => /back|rear|environment/i.test(d.label) && !/ultra|tele|dual|triple/i.test(d.label))?.deviceId || null;
+    } catch (e) { /* fall back to the default back camera */ }
+  }
+  async function openCamera(kind) {
+    const v = { width: { ideal: 4032 }, height: { ideal: 3024 }, frameRate: { ideal: 30 } };
+    const id = kind === "ultra" ? state.cams.ultra : state.cams.wide;
+    if (id) v.deviceId = { exact: id }; else v.facingMode = { ideal: "environment" };
+    if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+    const s = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
+    state.stream = s; video.srcObject = s; await video.play(); state.lensKind = kind;
+  }
+  function buildZooms() {
+    const wrap = $("#zooms"); wrap.textContent = "";
+    for (const z of ZOOMS) {
+      const b = document.createElement("button"); b.dataset.z = z; b.textContent = z === 0.5 ? ".5" : z + "×";
+      b.setAttribute("aria-label", `${z}× zoom`);
+      if (z === 0.5 && !state.cams.ultra) { b.disabled = true; b.title = "No ultra-wide lens found"; }
+      b.onclick = () => chooseZoom(z);
+      wrap.append(b);
+    }
+    refreshZooms();
+  }
+  function refreshZooms() {
+    const cur = state.lensKind === "ultra" ? 0.5 : state.zoom;
+    $("#zooms").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.z) === cur));
+  }
+  async function chooseZoom(z) {
+    if (state.source !== "live") return;
+    if (state.phase !== "idle") resetToIdle();
+    try {
+      if (z === 0.5) { if (state.lensKind !== "ultra") await openCamera("ultra"); state.zoom = 1; }
+      else { if (state.lensKind !== "wide") await openCamera("wide"); state.zoom = z; }
+    } catch (e) { setStatus("Couldn't switch lens. Try again.", true); }
+    motion.model.reset(); setLensZoom(); refreshZooms();
+    setStatus(z >= 4 ? `${z}× is digital zoom — hold steady, it's easy to shake.` : "Press the shutter to scan.");
+  }
   async function startCamera() {
     if (state.source === "live") return;
     setStatus("Starting the camera…");
+    enableMotion(); // asks for motion access while we still have your tap
     if (!navigator.mediaDevices?.getUserMedia) return cameraBlocked();
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false,
-      });
-      state.stream = s; video.srcObject = s; await video.play();
+      await openCamera("wide");
+      await findLenses();
+      if (state.cams.wide) await openCamera("wide"); // re-open the plain 1× lens by name now that we know it
       state.source = "live"; tag.hidden = true; $("#camLabel").textContent = "Camera on";
+      state.zoom = 1; setLensZoom(); buildZooms(); $("#zooms").hidden = false; vf.classList.add("has-zoom");
       resetToIdle();
       setStatus("Point at a scene and press the shutter. Thirds scans for 5 seconds.");
+      loadAI();
     } catch (e) { cameraBlocked(); }
   }
   function cameraBlocked() {
@@ -807,13 +1048,14 @@ function autoLevelsLUT(d, n) {
         "You are a photography coach. The image is a phone photo. Choose the single best crop inside it for a striking, " +
         "well-composed photo (rule of thirds, clean edges, strong subject, no awkward cut-offs). The crop keeps the same shape as the image, " +
         "so its width and height fractions are equal. Also pick the film look that suits it best from: natural, golden, slate, mono, faded. " +
-        'Reply with only JSON like {"x":0.1,"y":0.2,"size":0.7,"look":"golden","tip":"One short sentence on how to reshoot this better."} ' +
+        'Reply with only JSON like {"x":0.1,"y":0.2,"size":0.7,"look":"golden","subject":"person","tip":"One short sentence on how to reshoot this better."} ' +
         "where x and y are the crop's top-left corner as fractions (0-1) of the image width and height, and size (0.35-1) is the crop's width as a fraction of the image width.",
         { images: blob }
       );
       const s = Math.min(1, Math.max(0.35, Number(res?.size) || 0.75));
       const x = Math.min(1 - s, Math.max(0, Number(res?.x) || 0)), y = Math.min(1 - s, Math.max(0, Number(res?.y) || 0));
       state.box = { x, y, w: s, h: s, score: 1 };
+      if (typeof res?.subject === "string") state.subject = res.subject.slice(0, 24);
       if (LOOKS[res?.look]) { state.auto = { look: res.look, why: "Claude's pick" }; refreshLookChips(); applyPreviewLook(); }
       state.claudeTip = typeof res?.tip === "string" ? res.tip.slice(0, 220) : "";
       hint.innerHTML = "Claude's <b>shot</b> · tap ✓";
@@ -839,6 +1081,7 @@ function autoLevelsLUT(d, n) {
   useStill(makeSample(), "sample");
   fit();
   requestAnimationFrame(loop);
+  setTimeout(loadAI, 800); // start fetching the free AI models in the background
 })();
 </script>
 </body></html>

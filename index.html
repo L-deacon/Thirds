@@ -1,0 +1,553 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Thirds"><meta name="theme-color" content="#17181b"><link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAC00lEQVR4nO3dQUrcABSA4Vi67lbBAwjddCFu7HWEXsrrtJvSRUEKXsMTdDFdFM0/JsPUZNLv2ykRnvj7JpNxzNn5xeUAY94tPQDrJQ6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEgnGcf1ze31ze3SU8xzijOfZBy8DXGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcpPdLD3C4x/sPS48wy8MwDMOXA2e+uns65izT2BwkcZDEQRIHSRykE3628tIip/QT7d4o++P7tykHr+SJmM1BEgdJHCRxkMRBEgdJHKSjXedYwz+8WsMM+02e8OHQL/xj4gWV/WwO0tE2x1FSnah+jd5yhrlmXSF9+Wcfi3xrNgdJHCRxkMRBEgdJHCRxkMRBEgdJHCRxkMRBEgdpU+9b+ad+/fz694cfP31eapI3I47XPcvi709uOxFx7DOaxcsDtpqIc470ahkHHHlaxEESx7i5y2CTy0McJHGMOGwNbG95iIMkDpI4SOIgiWPEYVc8t3edVBwkcYybuwa2tzYGcbCHONL0ZbDJtTF4yX6/3U99z6XPrWaxI47XjSay7Sx2xDHV/1DDM845SOIgiYMkDpI4SOIgiYMkDpI4SOIgiYMkDpI4SOIgiYMkDpI4SOIgiYMkDpI4SOIgiYO0qfetPN4/v1fvmjwMw8jdhNdsU/ey3zD3smddNnUv+w1zL3vWRRykE362cnX3tPQIM+weChd5dDiYzUESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcJHGQxEESB0kcpLPzi8ulZ2ClbA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEi/AcwLV7AEeC2SAAAAAElFTkSuQmCC"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style></head><body><title>Thirds Camera</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen camera — header, viewfinder that fills the middle, looks strip, shutter row. Single dark look, like a real camera body. */
+:root {
+  color-scheme: dark;
+  --bg: #17181b;
+  --panel: #222429;
+  --line: #34373e;
+  --fg: #ede9e0;
+  --muted: #9b978d;
+  --accent: #f0b429;
+  --accent-ink: #1d1604;
+  --void: #0b0b0c;
+  --stamp: #ff8a3d;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { height: 100%; box-sizing: border-box; }
+body {
+  height: 100%; margin: 0; overflow: hidden;
+  background: var(--bg); color: var(--fg); font-family: var(--ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-block: 10px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
+.readout { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+.toggles { display: flex; gap: 6px; }
+.tog {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--muted);
+}
+.tog[aria-pressed="true"] { color: var(--fg); border-color: var(--muted); }
+
+.sources { display: flex; gap: 8px; }
+.src {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 500;
+}
+.src input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.src svg { width: 16px; height: 16px; flex: none; }
+
+.stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.vf { position: relative; background: var(--void); border-radius: 18px; overflow: hidden; }
+.vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vf canvas.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.hint {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px);
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg);
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hint b { color: var(--accent); font-weight: 500; }
+.tag {
+  position: absolute; left: 12px; bottom: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); background: color-mix(in srgb, var(--void) 70%, transparent); padding: 4px 8px; border-radius: 6px;
+}
+
+.status { min-height: 18px; font-size: 13px; color: var(--muted); text-align: center; line-height: 1.4; }
+.status.warn { color: var(--stamp); }
+
+.looks { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.looks::-webkit-scrollbar { display: none; }
+.look {
+  flex: none; font-size: 13px; padding: 7px 14px; border-radius: 999px; background: transparent; border: 1px solid var(--line); color: var(--muted);
+}
+.look[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding-bottom: 4px; }
+.thumb { justify-self: start; width: 52px; height: 52px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel) center/cover no-repeat; padding: 0; }
+.thumb:disabled { opacity: 0.4; cursor: default; }
+.shutter { width: 76px; height: 76px; border-radius: 50%; border: 3px solid var(--fg); background: transparent; padding: 5px; }
+.shutter span { display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--fg); transition: transform 0.12s; }
+.shutter:active span { transform: scale(0.9); }
+.side { justify-self: end; display: flex; gap: 8px; }
+.round {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; border: none; padding: 0;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.round i { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); font-style: normal; font-size: 18px; color: var(--fg); }
+.round[aria-pressed="true"] i { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.round:disabled { opacity: 0.4; cursor: default; }
+.round.busy i { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+.sheet { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--void) 75%, transparent); display: flex; align-items: flex-end; justify-content: center; }
+.sheet-card {
+  width: 100%; max-width: 560px; background: var(--panel); border-radius: 20px 20px 0 0; border-top: 1px solid var(--line);
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 14px; max-height: 92%; overflow-y: auto;
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 24px; }
+.done { background: var(--fg); color: var(--bg); border: none; border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 14px; }
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.shots figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.shots img { width: 100%; max-height: 42vh; object-fit: contain; background: var(--void); border-radius: 10px; -webkit-user-select: auto; user-select: auto; -webkit-touch-callout: default; }
+.shots figcaption { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.save { background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 9px; font-weight: 500; font-size: 14px; }
+.savehelp { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.tip { margin: 0; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tip b { color: var(--accent); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) { .round.busy i { animation: none; } .shutter span { transition: none; } }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Thirds</h1>
+      <span class="readout" id="readout">3:4 · Sample</span>
+    </div>
+    <div class="toggles">
+      <button class="tog" id="aspectBtn" aria-label="Change photo shape">3:4</button>
+      <button class="tog" id="gridBtn" aria-pressed="true">Grid</button>
+      <button class="tog" id="dateBtn" aria-pressed="true">Date</button>
+    </div>
+  </header>
+
+  <div class="sources">
+    <button class="src" id="camBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+      <span id="camLabel">Live camera</span>
+    </button>
+    <label class="src" id="photoBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-5 4 4 2-2 5 5"/></svg>
+      <span>Use a photo</span>
+      <input type="file" id="photoInput" accept="image/*">
+    </label>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="vf" id="vf">
+      <video id="video" playsinline muted autoplay hidden></video>
+      <canvas class="still" id="still"></canvas>
+      <canvas class="overlay" id="overlay"></canvas>
+      <div class="hint" id="hint">Sample scene</div>
+      <div class="tag" id="tag">Sample · not your photo</div>
+    </div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite">The yellow box is the shot Thirds found. Start the camera or pick a photo.</p>
+
+  <div class="looks" id="looks" role="group" aria-label="Film look"></div>
+
+  <div class="controls">
+    <button class="thumb" id="thumb" disabled aria-label="Open last photo"></button>
+    <button class="shutter" id="shutter" aria-label="Take photo"><span></span></button>
+    <div class="side">
+      <button class="round" id="askBtn" hidden aria-label="Ask Claude to frame this photo"><i>✎</i>Claude</button>
+      <button class="round" id="scoutBtn" aria-pressed="true" aria-label="Find the shot"><i>✦</i>Scout</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Your photos">
+    <div class="sheet-head"><h2>Developed</h2><button class="done" id="closeSheet">Done</button></div>
+    <p class="tip" id="sheetTip" hidden></p>
+    <div class="shots">
+      <figure><img id="imgFramed" alt="Framed crop"><figcaption>Framed crop</figcaption><button class="save" data-save="framed">Save</button></figure>
+      <figure><img id="imgFull" alt="Full photo"><figcaption>Full frame</figcaption><button class="save" data-save="full">Save</button></figure>
+    </div>
+    <p class="savehelp" id="saveHelp">Tap Save, or press and hold a photo and choose Save to Photos.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const video = $("#video"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
+  const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout");
+
+  const ASPECTS = [[3, 4], [4, 5], [1, 1]];
+  const LOOKS = {
+    natural: { label: "Natural", css: "none", fn: null },
+    golden:  { label: "Golden", css: "sepia(.22) saturate(1.2) contrast(1.04) brightness(1.03)",
+               fn: (r, g, b) => [r * 1.05 + 10, g + 5, b * 0.86 + 2] },
+    slate:   { label: "Slate", css: "saturate(.65) contrast(1.06) brightness(.97) hue-rotate(-6deg)",
+               fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; return [(l + (r - l) * 0.65) * 0.97 - 3, (l + (g - l) * 0.65) * 0.98, (l + (b - l) * 0.65) * 0.98 + 8]; } },
+    mono:    { label: "Mono", css: "grayscale(1) contrast(1.18)",
+               fn: (r, g, b) => { const l = (0.3 * r + 0.59 * g + 0.11 * b - 128) * 1.18 + 128; return [l, l, l]; } },
+    faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)",
+               fn: (r, g, b) => { const l = 0.3 * r + 0.59 * g + 0.11 * b; const f = (v) => 22 + (l + (v - l) * 0.85) * 0.86; return [f(r), f(g), f(b)]; } },
+  };
+
+  const state = {
+    mode: "sample", aspectIdx: 0, look: "natural", grid: true, stamp: true, scout: true,
+    box: null, target: null, stream: null, source: null, lastAnalyze: 0, lastShot: null, claudeTip: "",
+  };
+  const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
+
+  /* ---------- sample scene so the app opens in a working state ---------- */
+  function makeSample() {
+    const c = document.createElement("canvas"); c.width = 900; c.height = 1200;
+    const x = c.getContext("2d");
+    let g = x.createLinearGradient(0, 0, 0, 640); g.addColorStop(0, "#7fa7c9"); g.addColorStop(1, "#e7d9c2");
+    x.fillStyle = g; x.fillRect(0, 0, 900, 640);
+    x.fillStyle = "#fbe9b8"; x.beginPath(); x.arc(250, 330, 46, 0, 7); x.fill();
+    g = x.createLinearGradient(0, 600, 0, 760); g.addColorStop(0, "#2f7f9e"); g.addColorStop(1, "#56b0c4");
+    x.fillStyle = g; x.fillRect(0, 600, 900, 160);
+    g = x.createLinearGradient(0, 760, 0, 1200); g.addColorStop(0, "#e2cfae"); g.addColorStop(1, "#c9b08a");
+    x.fillStyle = g; x.fillRect(0, 760, 900, 440);
+    // parasol
+    x.strokeStyle = "#5a4630"; x.lineWidth = 10; x.beginPath(); x.moveTo(610, 520); x.lineTo(625, 990); x.stroke();
+    x.fillStyle = "#f3efe6"; x.beginPath(); x.moveTo(420, 600); x.quadraticCurveTo(610, 380, 810, 600); x.closePath(); x.fill();
+    x.fillStyle = "#d9533b"; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(610, 470); x.lineTo(450 + i * 100, 598); x.lineTo(500 + i * 100, 598); x.closePath(); x.fill(); }
+    x.fillStyle = "rgba(60,40,20,.25)"; x.beginPath(); x.ellipse(640, 1000, 190, 34, 0, 0, 7); x.fill();
+    // lounger
+    x.fillStyle = "#f6f3ec"; x.fillRect(480, 900, 260, 26); x.save(); x.translate(480, 912); x.rotate(-0.5); x.fillRect(-120, -13, 120, 26); x.restore();
+    x.fillStyle = "#3f6b3a"; for (let i = 0; i < 9; i++) { x.beginPath(); x.ellipse(110 + i * 14, 720 - (i % 3) * 30, 70, 16, -0.6 + i * 0.15, 0, 7); x.fill(); }
+    return c;
+  }
+
+  /* ---------- drawing helpers ---------- */
+  function srcSize(src) {
+    if (src instanceof HTMLVideoElement) return [src.videoWidth, src.videoHeight];
+    if (src instanceof HTMLImageElement) return [src.naturalWidth, src.naturalHeight];
+    return [src.width, src.height];
+  }
+  // draw `src` center-cropped to fill w×h (same as object-fit: cover)
+  function drawCover(ctx, src, w, h) {
+    const [sw, sh] = srcSize(src); if (!sw || !sh) return false;
+    const a = w / h; let cw = sw, ch = sw / a;
+    if (ch > sh) { ch = sh; cw = sh * a; }
+    ctx.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, h);
+    return true;
+  }
+
+  /* ---------- on-device "find the shot" (free, no AI service) ---------- */
+  const ac = document.createElement("canvas"), actx = ac.getContext("2d", { willReadFrequently: true });
+  function analyze(src) {
+    const W = 72, H = Math.round(W / aspect()); ac.width = W; ac.height = H;
+    if (!drawCover(actx, src, W, H)) return null;
+    const d = actx.getImageData(0, 0, W, H).data, N = W * H;
+    const L = new Float32Array(N), S = new Float32Array(N);
+    let mr = 0, mg = 0, mb = 0;
+    for (let i = 0; i < N; i++) {
+      const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+      L[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b); S[i] = mx ? (mx - mn) / mx : 0;
+      mr += r; mg += g; mb += b;
+    }
+    mr /= N; mg /= N; mb /= N;
+    const grad = new Float32Array(N), cd = new Float32Array(N); let gmax = 1e-6, cmax = 1e-6;
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      grad[i] = Math.abs(L[i + 1] - L[i - 1]) + Math.abs(L[i + W] - L[i - W]);
+      const r = d[i * 4] - mr, g = d[i * 4 + 1] - mg, b = d[i * 4 + 2] - mb;
+      cd[i] = Math.sqrt(r * r + g * g + b * b);
+      if (grad[i] > gmax) gmax = grad[i]; if (cd[i] > cmax) cmax = cd[i];
+    }
+    let sal = new Float32Array(N);
+    for (let i = 0; i < N; i++) sal[i] = 0.45 * grad[i] / gmax + 0.4 * cd[i] / cmax + 0.15 * S[i];
+    // soften twice so we score regions, not single pixels
+    for (let pass = 0; pass < 2; pass++) {
+      const t = new Float32Array(N);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        let s = 0, n = 0;
+        for (let k = -2; k <= 2; k++) { const xx = x + k; if (xx >= 0 && xx < W) { s += sal[y * W + xx]; n++; } }
+        t[y * W + x] = s / n;
+      }
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        let s = 0, n = 0;
+        for (let k = -2; k <= 2; k++) { const yy = y + k; if (yy >= 0 && yy < H) { s += t[yy * W + x]; n++; } }
+        sal[y * W + x] = s / n;
+      }
+    }
+    // summed-area tables: weight, weight·x, weight·y
+    const W1 = W + 1, I = new Float64Array(W1 * (H + 1)), IX = new Float64Array(I.length), IY = new Float64Array(I.length);
+    for (let y = 0; y < H; y++) { let r = 0, rx = 0, ry = 0;
+      for (let x = 0; x < W; x++) { const v = sal[y * W + x]; r += v; rx += v * x; ry += v * y;
+        const o = (y + 1) * W1 + x + 1; I[o] = I[o - W1] + r; IX[o] = IX[o - W1] + rx; IY[o] = IY[o - W1] + ry; } }
+    const sum = (T, x, y, w, h) => T[(y + h) * W1 + x + w] - T[y * W1 + x + w] - T[(y + h) * W1 + x] + T[y * W1 + x];
+    const total = sum(I, 0, 0, W, H) || 1e-6, mean = total / N;
+    const thirds = [[1 / 3, 1 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3], [2 / 3, 2 / 3]];
+    let best = null;
+    for (let sc = 0.5; sc <= 0.861; sc += 0.04) {
+      const bw = Math.round(W * sc), bh = Math.round(H * sc);
+      for (let y = 0; y <= H - bh; y += 2) for (let x = 0; x <= W - bw; x += 2) {
+        const s = sum(I, x, y, bw, bh); if (s <= 0) continue;
+        const cx = (sum(IX, x, y, bw, bh) / s - x) / bw, cy = (sum(IY, x, y, bw, bh) / s - y) / bh;
+        let dmin = 9; for (const [tx, ty] of thirds) dmin = Math.min(dmin, Math.hypot(cx - tx, cy - ty));
+        const score = (s / total) * 0.6 + ((s / (bw * bh)) / mean - 1) * 0.5 + Math.max(0, 1 - dmin / 0.3) * 0.15;
+        if (!best || score > best.score) best = { x: x / W, y: y / H, w: bw / W, h: bh / H, score };
+      }
+    }
+    return best;
+  }
+
+  /* ---------- viewfinder sizing + overlay ---------- */
+  function fit() {
+    const r = stage.getBoundingClientRect(); let w = r.width, h = w / aspect();
+    if (h > r.height) { h = r.height; w = h * aspect(); }
+    vf.style.width = w + "px"; vf.style.height = h + "px";
+    const dpr = window.devicePixelRatio || 1;
+    overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
+    if (state.mode !== "live") renderStill();
+  }
+  function renderStill() {
+    if (!state.source) return;
+    const w = Math.min(1200, overlay.width), h = Math.round(w / aspect());
+    still.width = w; still.height = h; drawCover(still.getContext("2d"), state.source, w, h);
+  }
+  function drawOverlay() {
+    const c = overlay.getContext("2d"), W = overlay.width, H = overlay.height, dpr = window.devicePixelRatio || 1;
+    c.clearRect(0, 0, W, H);
+    if (state.grid) {
+      c.strokeStyle = "rgba(255,255,255,.32)"; c.lineWidth = dpr;
+      c.beginPath();
+      for (const f of [1 / 3, 2 / 3]) { c.moveTo(W * f, 0); c.lineTo(W * f, H); c.moveTo(0, H * f); c.lineTo(W, H * f); }
+      c.stroke();
+    }
+    const b = state.box;
+    if (state.scout && b) {
+      const x = b.x * W, y = b.y * H, w = b.w * W, h = b.h * H;
+      c.fillStyle = "rgba(0,0,0,.28)";
+      c.fillRect(0, 0, W, y); c.fillRect(0, y + h, W, H - y - h); c.fillRect(0, y, x, h); c.fillRect(x + w, y, W - x - w, h);
+      c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f0b429";
+      c.lineWidth = 2 * dpr; c.strokeRect(x, y, w, h);
+      const t = 14 * dpr; c.lineWidth = 4 * dpr; c.beginPath();
+      for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) {
+        c.moveTo(px, py + sy * t); c.lineTo(px, py); c.lineTo(px + sx * t, py);
+      }
+      c.stroke();
+      c.lineWidth = 1.5 * dpr; const mx = x + w / 2, my = y + h / 2; c.beginPath();
+      c.moveTo(mx - 8 * dpr, my); c.lineTo(mx + 8 * dpr, my); c.moveTo(mx, my - 8 * dpr); c.lineTo(mx, my + 8 * dpr); c.stroke();
+    }
+  }
+  function liveHint(b) {
+    if (!state.scout) return "Scout off";
+    if (!b) return "Looking…";
+    const dx = b.x + b.w / 2 - 0.5, dy = b.y + b.h / 2 - 0.5;
+    if (Math.abs(dx) > 0.08) return dx > 0 ? "Pan <b>right</b>" : "Pan <b>left</b>";
+    if (Math.abs(dy) > 0.08) return dy > 0 ? "Tilt <b>down</b>" : "Tilt <b>up</b>";
+    if (b.w < 0.72) return "Step <b>closer</b>";
+    return "<b>Hold</b> — take it";
+  }
+
+  function loop(t) {
+    if (state.mode === "live" && state.scout && video.videoWidth && t - state.lastAnalyze > 380) {
+      state.lastAnalyze = t; state.target = analyze(video);
+    }
+    if (state.target) {
+      if (!state.box || state.mode !== "live") state.box = { ...state.target };
+      else for (const k of ["x", "y", "w", "h"]) state.box[k] += (state.target[k] - state.box[k]) * 0.3;
+    }
+    if (state.mode === "live") hint.innerHTML = liveHint(state.box);
+    drawOverlay();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- sources ---------- */
+  function setReadout() {
+    const [a, b] = ASPECTS[state.aspectIdx];
+    readout.textContent = `${a}:${b} · ${({ live: "Live", still: "Photo", sample: "Sample" })[state.mode]}`;
+  }
+  function useStill(src, mode) {
+    stopCamera(); state.mode = mode; state.source = src; state.claudeTip = "";
+    video.hidden = true; still.hidden = false; tag.hidden = mode !== "sample";
+    renderStill(); state.target = state.scout ? analyze(src) : null; state.box = state.target && { ...state.target };
+    hint.innerHTML = mode === "sample" ? "Sample scene" : "Suggested <b>crop</b>";
+    setReadout(); updateAsk();
+  }
+  function stopCamera() {
+    if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+    state.stream = null; $("#camLabel").textContent = "Live camera";
+  }
+  async function startCamera() {
+    if (state.mode === "live") return;
+    setStatus("Starting the camera…");
+    if (!navigator.mediaDevices?.getUserMedia) return cameraBlocked();
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false,
+      });
+      state.stream = s; video.srcObject = s; video.hidden = false; await video.play();
+      state.mode = "live"; state.source = video; still.hidden = true; tag.hidden = true; state.box = null; state.target = null;
+      $("#camLabel").textContent = "Camera on"; setReadout(); updateAsk();
+      setStatus("Follow the hint until it says Hold, then press the shutter.");
+    } catch (e) { cameraBlocked(); }
+  }
+  function cameraBlocked() {
+    setStatus("Live camera isn't allowed here. Tap Use a photo — iPhone lets you take one with the camera.", true);
+  }
+  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
+
+  $("#camBtn").onclick = startCamera;
+  $("#photoInput").onchange = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const img = new Image(); img.onload = () => {
+      useStill(img, "still");
+      setStatus(askAvailable ? "Press the shutter to develop it, or ask Claude for its own framing." : "Press the shutter to develop the framed crop.");
+    };
+    img.onerror = () => setStatus("That file couldn't be opened. Try a JPEG or PNG photo.", true);
+    img.src = URL.createObjectURL(f); e.target.value = "";
+  };
+
+  /* ---------- controls ---------- */
+  function buildLooks() {
+    const wrap = $("#looks");
+    for (const [key, l] of Object.entries(LOOKS)) {
+      const b = document.createElement("button"); b.className = "look"; b.textContent = l.label;
+      b.setAttribute("aria-pressed", key === state.look); b.dataset.look = key;
+      b.onclick = () => {
+        state.look = key; wrap.querySelectorAll(".look").forEach((x) => x.setAttribute("aria-pressed", x.dataset.look === key));
+        video.style.filter = still.style.filter = l.css;
+      };
+      wrap.append(b);
+    }
+  }
+  const toggle = (btn, key, after) => (btn.onclick = () => { state[key] = !state[key]; btn.setAttribute("aria-pressed", state[key]); after && after(); });
+  toggle($("#gridBtn"), "grid");
+  toggle($("#dateBtn"), "stamp");
+  toggle($("#scoutBtn"), "scout", () => {
+    if (!state.scout) { state.box = state.target = null; if (state.mode !== "live") hint.textContent = "Scout off"; }
+    else if (state.mode !== "live") { state.target = analyze(state.source); state.box = state.target && { ...state.target }; hint.innerHTML = "Suggested <b>crop</b>"; }
+  });
+  $("#aspectBtn").onclick = () => {
+    state.aspectIdx = (state.aspectIdx + 1) % ASPECTS.length;
+    const [a, b] = ASPECTS[state.aspectIdx]; $("#aspectBtn").textContent = `${a}:${b}`;
+    setReadout(); fit();
+    if (state.mode !== "live" && state.scout) { state.target = analyze(state.source); state.box = state.target && { ...state.target }; }
+    else state.box = null;
+  };
+
+  /* ---------- developing a photo ---------- */
+  function develop(src, box) {
+    const [sw, sh] = srcSize(src), a = aspect();
+    let w = Math.min(sw, sh * a), h = w / a; const scale = Math.min(1, 2000 / Math.max(w, h));
+    w = Math.round(w * scale); h = Math.round(h * scale);
+    const base = document.createElement("canvas"); base.width = w; base.height = h;
+    const bx = base.getContext("2d"); drawCover(bx, src, w, h);
+    const fn = LOOKS[state.look].fn;
+    if (fn) {
+      const img = bx.getImageData(0, 0, w, h), p = img.data;
+      for (let i = 0; i < p.length; i += 4) {
+        const [r, g, b] = fn(p[i], p[i + 1], p[i + 2]), n = (Math.random() - 0.5) * 12;
+        p[i] = r + n; p[i + 1] = g + n; p[i + 2] = b + n;
+      }
+      bx.putImageData(img, 0, 0);
+    }
+    const out = (cx, cy, cw, ch) => {
+      const c = document.createElement("canvas"); c.width = Math.round(cw); c.height = Math.round(ch);
+      const x = c.getContext("2d"); x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
+      if (state.stamp) {
+        const d = new Date(), pad = (n) => String(n).padStart(2, "0");
+        const txt = `'${pad(d.getFullYear() % 100)} ${pad(d.getMonth() + 1)} ${pad(d.getDate())}`;
+        const fs = Math.round(c.width * 0.042);
+        x.font = `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`; x.textAlign = "right"; x.textBaseline = "alphabetic";
+        x.shadowColor = "rgba(255,110,40,.7)"; x.shadowBlur = fs * 0.35; x.fillStyle = "#ff8a3d";
+        x.fillText(txt, c.width * 0.95, c.height * 0.95);
+      }
+      return c;
+    };
+    const full = out(0, 0, w, h);
+    const framed = box ? out(box.x * w, box.y * h, box.w * w, box.h * h) : full;
+    return { full, framed };
+  }
+  const toBlob = (c) => new Promise((res) => c.toBlob(res, "image/jpeg", 0.92));
+
+  $("#shutter").onclick = async () => {
+    const src = state.source; if (!src) return;
+    if (state.mode === "live" && !video.videoWidth) return;
+    vf.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220 });
+    const { full, framed } = develop(src, state.scout ? state.box : null);
+    const [fb, rb] = await Promise.all([toBlob(framed), toBlob(full)]);
+    if (state.lastShot) { URL.revokeObjectURL(state.lastShot.framedUrl); URL.revokeObjectURL(state.lastShot.fullUrl); }
+    state.lastShot = { framed: fb, full: rb, framedUrl: URL.createObjectURL(fb), fullUrl: URL.createObjectURL(rb), tip: state.claudeTip };
+    $("#thumb").style.backgroundImage = `url(${state.lastShot.framedUrl})`; $("#thumb").disabled = false;
+    openSheet();
+  };
+  function openSheet() {
+    const s = state.lastShot; if (!s) return;
+    $("#imgFramed").src = s.framedUrl; $("#imgFull").src = s.fullUrl;
+    const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.innerHTML = s.tip ? "<b>Claude's tip:</b> " : ""; if (s.tip) tipEl.append(s.tip);
+    $("#sheet").hidden = false;
+  }
+  $("#thumb").onclick = openSheet;
+  $("#closeSheet").onclick = () => ($("#sheet").hidden = true);
+  $("#sheet").onclick = (e) => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
+  document.querySelectorAll("[data-save]").forEach((btn) => (btn.onclick = async () => {
+    const which = btn.dataset.save, blob = state.lastShot?.[which]; if (!blob) return;
+    const file = new File([blob], `thirds-${which}-${Date.now()}.jpg`, { type: "image/jpeg" });
+    try {
+      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    } catch (e) { if (e?.name === "AbortError") return; }
+    $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo, then choose Save to Photos.";
+  }));
+
+  /* ---------- Ask Claude (only inside the Claude app, on the viewer's own Claude usage) ---------- */
+  let sample = null, askAvailable = false;
+  function updateAsk() { $("#askBtn").hidden = !(askAvailable && state.mode === "still"); }
+  (async () => {
+    try {
+      if (!window.claude?.use) return;
+      sample = await window.claude.use("sample"); if (!sample) return;
+      const lim = await sample.limits().catch(() => null);
+      askAvailable = !!lim?.images; updateAsk();
+    } catch (e) { /* not inside Claude: the free on-device scout still works */ }
+  })();
+  $("#askBtn").onclick = async () => {
+    if (!sample || !state.source || state.mode !== "still") return;
+    const btn = $("#askBtn"); btn.disabled = true; btn.classList.add("busy");
+    setStatus("Claude is studying your photo…");
+    try {
+      const c = document.createElement("canvas"); const w = 1024, h = Math.round(w / aspect());
+      c.width = w; c.height = h; drawCover(c.getContext("2d"), state.source, w, h);
+      const blob = await toBlob(c);
+      const res = await sample.json(
+        "You are a photography coach. The image is a phone photo. Choose the single best crop inside it for a striking, " +
+        "well-composed photo (rule of thirds, clean edges, strong subject, no awkward cut-offs). The crop keeps the same shape as the image, " +
+        "so its width and height fractions are equal. Reply with only JSON like " +
+        '{"x":0.1,"y":0.2,"size":0.7,"tip":"One short sentence on how to reshoot this better, e.g. where to stand or what to move."} ' +
+        "where x and y are the crop's top-left corner as fractions (0-1) of the image width and height, and size (0.35-1) is the crop's width as a fraction of the image width.",
+        { images: blob }
+      );
+      const s = Math.min(1, Math.max(0.35, Number(res?.size) || 0.75));
+      const x = Math.min(1 - s, Math.max(0, Number(res?.x) || 0)), y = Math.min(1 - s, Math.max(0, Number(res?.y) || 0));
+      if (!state.scout) { state.scout = true; $("#scoutBtn").setAttribute("aria-pressed", true); }
+      state.target = { x, y, w: s, h: s, score: 1 }; state.box = { ...state.target };
+      state.claudeTip = typeof res?.tip === "string" ? res.tip.slice(0, 220) : "";
+      hint.innerHTML = "Claude's <b>crop</b>";
+      setStatus(state.claudeTip ? "Claude: " + state.claudeTip : "Claude moved the box. Press the shutter to develop it.");
+    } catch (e) {
+      const code = e?.code;
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "images_unavailable"].includes(code)) {
+        askAvailable = false; updateAsk(); setStatus("Claude isn't available for this page. The free Scout box still works.", true);
+      } else if (code === "rate_limited") setStatus("Claude is busy for you right now. Try again in a little while.", true);
+      else if (code === "cancelled") setStatus("");
+      else setStatus("Claude couldn't frame this one. Tap Claude to try again.", true);
+    } finally { btn.disabled = false; btn.classList.remove("busy"); }
+  };
+
+  /* ---------- start ---------- */
+  buildLooks();
+  new ResizeObserver(fit).observe(stage);
+  state.source = makeSample();
+  fit(); useStill(state.source, "sample");
+  requestAnimationFrame(loop);
+})();
+</script>
+</body></html>

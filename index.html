@@ -622,7 +622,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v8";
+  const VERSION = "v8.1";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -1267,7 +1267,7 @@ function sharpen(p, W, H, amount) {
       zoomTxt: state.source === "live" ? `${(state.zoom * (crop ? 1 / Math.max(crop.w, crop.h) : 1)).toFixed(1)}×` : "" };
     setStatus("Developing…"); await pause();
     state.lastMask = personMask(base);
-    state.portrait = !!state.lastMask;
+    state.portrait = false; // off by default — turn it on from the Developed screen
     await renderShot(lookKey());
     resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
   }

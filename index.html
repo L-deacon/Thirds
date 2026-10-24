@@ -320,6 +320,32 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .libdel { position: absolute; top: 4px; right: 4px; min-width: 26px; height: 26px; border-radius: 13px; border: none; padding: 0 8px;
   background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg); font-size: 14px; }
 .libdel.armed { background: var(--stamp); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+/* ---------- options in the phone's side status strip (iPhone Duo) ---------- */
+.sidestrip { display: none; }
+html[data-side] .sidestrip { display: flex; position: fixed; z-index: 8; top: 27%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: var(--side-w, 80px);
+  flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; overflow-y: auto; scrollbar-width: none; padding-block: 4px; }
+html[data-side="r"] .sidestrip { right: 0; }
+html[data-side="l"] .sidestrip { left: 0; }
+html[data-side] .sidestrip .sources, html[data-side] .sidestrip .toggles { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+html[data-side] .sidestrip .src { flex: none; width: min(56px, calc(var(--side-w) - 10px)); height: 48px; padding: 0; border-radius: 14px; }
+html[data-side] .sidestrip .src span { display: none; }
+html[data-side] .sidestrip .src svg { width: 20px; height: 20px; }
+html[data-side] .sidestrip .tog { width: min(56px, calc(var(--side-w) - 10px)); padding: 9px 0; font-size: 11px; text-align: center; }
+/* with the options moved out, the top bar is just the name, so the picture gets more room */
+html[data-side] header { min-height: 0; }
+html[data-side] .app[data-layout="big"] { grid-template-rows: auto minmax(0, 1fr); }
+html[data-side] .app[data-layout="big"] .stage, html[data-side] .app[data-layout="big"] .dock { grid-row: 2; }
+html[data-side] .app[data-layout="big"][data-compact] { grid-template-columns: minmax(0, 1fr); }
+html[data-side] .app[data-layout="big"][data-compact] .stage, html[data-side] .app[data-layout="big"][data-compact] .dock { grid-column: 1; }
+html[data-side] .app[data-layout="big"][data-compact] .readout { display: inline; }
+/* editor: its top buttons also move into the side strip */
+html[data-side] .ed-top { position: fixed; z-index: 31; top: 27%; width: var(--side-w, 80px); flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 10px; }
+html[data-side="r"] .ed-top { right: 0; }
+html[data-side="l"] .ed-top { left: 0; }
+html[data-side] .ed-seg { flex: none; flex-direction: column; max-width: none; margin: 0; width: min(60px, calc(var(--side-w, 80px) - 8px)); }
+html[data-side] .ed-seg button { padding: 8px 0; font-size: 11px; }
+html[data-side] .ed-pill { width: min(60px, calc(var(--side-w, 80px) - 8px)); padding: 8px 0; font-size: 11px; text-align: center; }
+html[data-side] .app:not([data-layout]) .stage, html[data-side] .app[data-layout=""] .stage { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .vf video, .vf .lens { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
 </style>
 
@@ -397,6 +423,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   </div>
   </div>
 </div>
+
+<nav class="sidestrip" id="sideStrip" aria-label="Camera options"></nav>
 
 <div class="editor" id="sheet" role="dialog" aria-label="Edit photo" hidden>
   <div class="ed-inner">
@@ -890,7 +918,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v9.1";
+  const VERSION = "v9.2";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1], [9, 16]];
   const LOOKS = {
@@ -1044,7 +1072,30 @@ function sharpen(p, W, H, amount) {
     if ((appEl.dataset.compact || "") !== compact) { if (compact) appEl.dataset.compact = compact; else delete appEl.dataset.compact; }
     return mode;
   }
+  // iPhone Duo (and some other phones) put the clock and Wi-Fi in a strip down the SIDE of the screen.
+  // iPhone asks pages to keep clear of that whole strip, but only its top part is really used,
+  // so Thirds puts its options in the rest of the strip.
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)";
+  document.body.append(probe);
+  const toolsHome = document.querySelector("header"), srcHome = document.querySelector(".sources"), strip = document.getElementById("sideStrip");
+  const toggles = document.querySelector(".toggles");
+  function useSideStrip() {
+    const cs = getComputedStyle(probe), r = parseFloat(cs.paddingRight) || 0, l = parseFloat(cs.paddingLeft) || 0;
+    const force = new URLSearchParams(location.search).get("side"); // for testing: ?side=r
+    const side = force ? force : r >= 44 && r >= l ? "r" : l >= 44 ? "l" : "";
+    const root = document.documentElement;
+    if ((root.dataset.side || "") === side) return;
+    if (side) {
+      root.dataset.side = side; root.style.setProperty("--side-w", (force ? 84 : Math.max(r, l)) + "px");
+      strip.append(srcHome, toggles);
+    } else {
+      delete root.dataset.side;
+      toolsHome.append(toggles); toolsHome.after(srcHome);
+    }
+  }
   function fit() {
+    useSideStrip();
     const mode = chooseLayout();
     if (mode === "rail") {
       const avail = appEl.clientWidth, sh = stage.getBoundingClientRect().height;

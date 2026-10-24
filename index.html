@@ -28,7 +28,7 @@ body {
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, .src:focus-within, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-block: 10px; }
 .dock { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
@@ -209,6 +209,81 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .tip { margin: 0; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tip b { color: var(--accent); font-weight: 600; }
 
+/* ---------- editor (full screen, like a photo app) ---------- */
+.editor { position: fixed; inset: 0; z-index: 30; background: var(--void); color: var(--fg);
+  padding: env(safe-area-inset-top, 0px) max(12px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 0px)); }
+.ed-inner { height: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-block: 10px; }
+.ed-left { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.ed-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ed-top { display: flex; align-items: center; gap: 8px; }
+.ed-icon { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 15px; flex: none; }
+.ed-seg { flex: 1; max-width: 220px; margin-right: auto; }
+.ed-seg button { padding: 6px; font-size: 12px; }
+.ed-pill { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 500; flex: none; }
+.ed-pill[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.ed-photo { position: relative; flex: 1; min-height: 120px; -webkit-touch-callout: none; touch-action: manipulation; }
+.ed-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; -webkit-user-select: none; user-select: none; }
+.ed-badge { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--void) 70%, transparent); padding: 4px 9px; border-radius: 6px; }
+.ed-meta { margin: 0; text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-critic { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); min-width: 0; }
+.ed-critic b { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 24px; color: var(--accent); flex: none; }
+.ed-critic span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ed-tabs { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--panel); align-self: center; }
+.ed-tabs button { position: relative; border: none; background: transparent; border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.ed-tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--fg) 14%, transparent); color: var(--fg); }
+.ed-tabs button.dot::after { content: ""; position: absolute; top: 7px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.ed-panel { display: flex; flex-direction: column; gap: 10px; max-height: 32vh; overflow-y: auto; min-width: 0; }
+.lookstrip { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.lookstrip::-webkit-scrollbar { display: none; }
+.lookthumb { position: relative; flex: none; width: 84px; display: flex; flex-direction: column; gap: 6px; align-items: center; background: transparent; border: none; padding: 0; }
+.lookthumb img { width: 84px; height: 108px; object-fit: cover; border-radius: 12px; background: var(--panel); border: 3px solid transparent; }
+.lookthumb span { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); }
+.lookthumb i { display: none; position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 18px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.lookthumb[aria-pressed="true"] img { border-color: var(--accent); }
+.lookthumb[aria-pressed="true"] span { color: var(--accent); }
+.lookthumb[aria-pressed="true"] i { display: block; }
+.ed-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.adjlist { display: grid; grid-template-columns: 1fr; gap: 12px 20px; }
+.adjrow, .strength { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adjtop { display: flex; justify-content: space-between; font-size: 13px; }
+.adjtop output { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.adjrow input, .strength input { width: 100%; accent-color: var(--accent); }
+.ed-reset { align-self: flex-start; border: none; background: transparent; color: var(--muted); font-size: 13px; padding: 4px 0; text-decoration: underline; }
+.ed-toggles { display: flex; gap: 8px; }
+.framestrip { display: flex; gap: 10px; flex-wrap: wrap; }
+.framechip { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; padding: 0; font-size: 12px; color: var(--muted); }
+.framechip .sw { width: 56px; height: 70px; border-radius: 8px; border: 2px solid var(--line); background: var(--panel); position: relative; }
+.framechip .sw::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, #7fa7c9, #e2cfae); border-radius: 4px; }
+.framechip .sw-white { background: #fff; } .framechip .sw-white::after { inset: 5px; }
+.framechip .sw-paper { background: #f2ede3; } .framechip .sw-paper::after { inset: 6px 6px 18px; }
+.framechip .sw-black { background: #0b0b0c; } .framechip .sw-black::after { inset: 4px; }
+.framechip .sw-film { background: repeating-linear-gradient(90deg, #100d0b 0 6px, #d8cdb5 6px 9px); } .framechip .sw-film::after { inset: 9px 3px; }
+.framechip .sw-caption { background: #fff; } .framechip .sw-caption::after { inset: 5px 5px 16px; }
+.framechip[aria-pressed="true"] { color: var(--accent); }
+.framechip[aria-pressed="true"] .sw { border-color: var(--accent); }
+.ed-bottom { display: flex; gap: 10px; }
+.ed-del { flex: 1; border: none; border-radius: 999px; padding: 14px; background: var(--panel); font-size: 15px; font-weight: 500; }
+.ed-del.armed { background: color-mix(in srgb, var(--stamp) 25%, var(--panel)); color: var(--stamp); }
+.ed-save { flex: 1.4; border: none; border-radius: 999px; padding: 14px; background: var(--accent); color: var(--accent-ink); font-size: 15px; font-weight: 600; }
+.editor button:disabled { opacity: 0.5; }
+.editor .savehelp:empty { display: none; }
+/* wide screens: photo on the left, editing tools on the right */
+@media (min-width: 640px) and (min-aspect-ratio: 1/1) {
+  .ed-inner { max-width: none; flex-direction: row; gap: 20px; }
+  .ed-right { width: 360px; flex: none; justify-content: flex-end; }
+  .ed-panel { max-height: none; flex: 1; }
+}
+@media (min-width: 600px) and (max-aspect-ratio: 1/1) { .adjlist { grid-template-columns: 1fr 1fr; } .ed-inner { max-width: 760px; } }
+/* library */
+.libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.libcell { position: relative; aspect-ratio: 3 / 4; max-width: 100%; }
+.libopen { position: absolute; inset: 0; padding: 0; border: none; border-radius: 8px; overflow: hidden; background: var(--panel); }
+.libopen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.libdel { position: absolute; top: 4px; right: 4px; min-width: 26px; height: 26px; border-radius: 13px; border: none; padding: 0 8px;
+  background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg); font-size: 14px; }
+.libdel.armed { background: var(--stamp); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .vf video, .vf .lens { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
 </style>
 
@@ -287,25 +362,65 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   </div>
 </div>
 
-<div class="sheet" id="sheet" hidden>
-  <div class="sheet-card" role="dialog" aria-label="Your photo">
+<div class="editor" id="sheet" role="dialog" aria-label="Edit photo" hidden>
+  <div class="ed-inner">
+    <div class="ed-left">
+      <div class="ed-top">
+        <button class="ed-icon" id="closeSheet" aria-label="Close editor">✕</button>
+        <div class="seg ed-seg" id="viewSeg" role="group" aria-label="Show">
+          <button data-view="framed" aria-pressed="true">Framed</button><button data-view="full" aria-pressed="false">Full</button>
+        </div>
+        <button class="ed-pill" id="beforeBtn" aria-pressed="false">Before</button>
+        <button class="ed-pill" id="openLib">Library</button>
+      </div>
+      <div class="ed-photo" id="edPhoto">
+        <img id="imgEdit" alt="Edited photo">
+        <img id="imgOrig" alt="Original photo, no edits" hidden>
+        <span class="ed-badge" id="edBadge" hidden>Original</span>
+      </div>
+      <p class="ed-meta" id="sheetLook">Auto look</p>
+    </div>
+    <div class="ed-right">
+      <p class="tip" id="sheetTip" hidden></p>
+      <p class="ed-critic" id="critic" hidden></p>
+      <div class="ed-tabs" role="tablist" aria-label="Edit">
+        <button data-tab="looks" role="tab">Looks</button><button data-tab="adjust" role="tab">Adjust</button><button data-tab="effects" role="tab">Effects</button><button data-tab="frames" role="tab">Frames</button>
+      </div>
+      <div class="ed-panel" data-tab="looks">
+        <div class="lookstrip" id="lookStrip" role="group" aria-label="Looks"></div>
+        <label class="strength" id="strengthRow" hidden><span class="adjtop"><span>Look strength</span><output id="strengthVal">100%</output></span>
+          <input type="range" id="lookStrength" min="0" max="100" step="1" value="100"></label>
+        <p class="ed-hint">Tap the selected look again to change its strength. Hold the photo to see the original.</p>
+      </div>
+      <div class="ed-panel" data-tab="adjust" hidden>
+        <div class="adjlist" id="adjList"></div>
+        <button class="ed-reset" id="adjReset">Reset adjustments</button>
+      </div>
+      <div class="ed-panel" data-tab="effects" hidden>
+        <div class="ed-toggles"><button class="look" id="portraitBtn" aria-pressed="false" hidden>Portrait blur</button></div>
+        <div class="adjlist" id="fxList"></div>
+        <button class="ed-reset" id="fxReset">Reset effects</button>
+      </div>
+      <div class="ed-panel" data-tab="frames" hidden>
+        <div class="framestrip" id="sheetBorders" role="group" aria-label="Frames"></div>
+      </div>
+      <div class="ed-bottom">
+        <button class="ed-del" id="delBtn">Delete</button>
+        <button class="ed-save" id="saveBtn">✓ Save</button>
+      </div>
+      <p class="savehelp" id="saveHelp" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="libSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Library">
     <div class="sheet-head">
-      <div><h2>Developed</h2><small id="sheetLook">Auto look</small></div>
-      <button class="done" id="closeSheet">Done</button>
+      <div><h2>Library</h2><small id="libCount"></small></div>
+      <button class="done" id="closeLib">Done</button>
     </div>
-    <div class="seg" id="viewSeg" role="group" aria-label="Show">
-      <button data-view="framed" aria-pressed="true">Framed shot</button><button data-view="full" aria-pressed="false">Full frame</button>
-    </div>
-    <p class="tip" id="sheetTip" hidden></p>
-    <div class="shots">
-      <figure><img id="imgOrig" alt="Original photo, no edits"><figcaption>Original</figcaption><button class="save" data-save="orig">Save original</button></figure>
-      <figure><img id="imgEdit" alt="Edited photo"><figcaption>Edited</figcaption><button class="save" data-save="edit">Save edited</button></figure>
-    </div>
-    <div class="critic" id="critic" hidden></div>
-    <div class="sheet-row"><span class="sheet-label">Look</span><div class="looks" id="sheetLooks" role="group" aria-label="Change the look"></div></div>
-    <div class="sheet-row"><span class="sheet-label">Border</span><div class="looks" id="sheetBorders" role="group" aria-label="Border"></div></div>
-    <div class="sheet-row" ><span class="sheet-label">Effects</span><div class="looks"><button class="look" id="portraitBtn" aria-pressed="false" hidden>Portrait blur</button></div></div>
-    <p class="savehelp" id="saveHelp">Tap Save, or press and hold a photo and choose Save to Photos.</p>
+    <p class="savehelp" id="libStatus"></p>
+    <div class="libgrid" id="libGrid"></div>
   </div>
 </div>
 
@@ -523,7 +638,7 @@ function chooseLook(d, n) {
     sl += l; sl2 += l * l; ss += mx ? (mx - mn) / mx : 0; warm += r - b;
   }
   const L = sl / n, sd = Math.sqrt(Math.max(0, sl2 / n - L * L)), sat = ss / n, w = warm / n;
-  if (L < 70) return { look: "mono", why: "low light" };
+  if (L < 70) return { look: "night", why: "low light" };
   if (sat < 0.14) return { look: "mono", why: "muted colours" };
   if (sd > 68) return { look: "faded", why: "harsh contrast" };
   if (w > 14) return { look: "golden", why: "warm light" };
@@ -609,7 +724,39 @@ const LOOK_PARAMS = {
   slate:   { contrast: 0.18, fade: 6, roll: 6, temp: -8, tint: -2, sh: [-6, 2, 8], hi: [6, 2, -4], sat: 0.72, grain: 6, halation: 0.12, vignette: 0.22 },
   mono:    { contrast: 0.26, fade: 4, roll: 4, temp: 0, tint: 0, sh: [0, 0, 0], hi: [0, 0, 0], sat: 0, grain: 11, halation: 0, vignette: 0.28 },
   faded:   { contrast: -0.04, fade: 28, roll: 20, temp: 4, tint: 3, sh: [4, 0, 8], hi: [6, 4, 0], sat: 0.86, grain: 6, halation: 0.22, vignette: 0.18 },
+  chrome:  { contrast: 0.24, fade: 0, roll: 2, temp: 2, tint: 0, sh: [-4, 0, 6], hi: [6, 2, -4], sat: 1.25, grain: 4, halation: 0.1, vignette: 0.2 },
+  night:   { contrast: 0.1, fade: 18, roll: 14, temp: -4, tint: 4, sh: [-2, 6, 10], hi: [10, 4, -6], sat: 0.9, grain: 20, halation: 0.5, vignette: 0.3 },
 };
+
+// The editor's sliders (-100..100 or 0..100) layered on top of a look.
+const ADJUSTMENTS = [
+  ["exposure", "Exposure", -100, 100], ["contrast", "Contrast", -100, 100], ["highlights", "Highlights", -100, 100],
+  ["shadows", "Shadows", -100, 100], ["warmth", "Warmth", -100, 100], ["tint", "Tint", -100, 100],
+  ["saturation", "Saturation", -100, 100], ["fade", "Fade", 0, 100], ["grain", "Grain", 0, 100],
+  ["glow", "Glow", 0, 100], ["leak", "Light leak", 0, 100], ["dust", "Dust & scratches", 0, 100], ["vignette", "Vignette", -100, 100],
+];
+function applyAdjust(P, a) {
+  a = a || {}; const v = (k) => (Number(a[k]) || 0) / 100;
+  return { ...P,
+    contrast: P.contrast + v("contrast") * 0.3,
+    fade: P.fade + Math.max(0, v("fade")) * 40, roll: P.roll + Math.max(0, v("fade")) * 20,
+    temp: P.temp + v("warmth") * 22, tint: P.tint + v("tint") * 14,
+    sat: Math.max(0, P.sat * (1 + v("saturation"))), grain: P.grain + v("grain") * 24,
+    vignette: Math.max(0, P.vignette + v("vignette") * 0.45),
+    exposure: v("exposure"), highlights: v("highlights"), shadows: v("shadows"),
+    glow: v("glow"), leak: v("leak"), dust: v("dust") };
+}
+// Look strength: blend between Natural (0%) and the full look (100%).
+function lookAt(key, strength) {
+  const A = LOOK_PARAMS.natural, B = LOOK_PARAMS[key], t = Math.max(0, Math.min(1, (strength ?? 100) / 100)), o = {};
+  for (const k of Object.keys(B)) o[k] = Array.isArray(B[k]) ? B[k].map((v, i) => A[k][i] + (v - A[k][i]) * t) : A[k] + (B[k] - A[k]) * t;
+  return o;
+}
+// Repeatable "random" numbers: the same seed gives the same dust and light leak every time you re-edit.
+function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 
 // One lookup table per colour channel: auto-exposure + the look's curve and colour.
 function buildLUTs(d, n, P) {
@@ -626,6 +773,10 @@ function buildLUTs(d, n, P) {
   const shift = [P.temp + P.tint * 0.3, -P.tint, -P.temp];
   for (let v = 0; v < 256; v++) {
     let t = Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), gamma);
+    if (P.exposure) { const te = t * Math.pow(2, P.exposure); t = te <= 0.8 ? te : 0.8 + 0.2 * (1 - Math.exp(-(te - 0.8) / 0.2)); } // brighter/darker, highlights roll off softly
+    if (P.shadows) t += P.shadows * 0.3 * (1 - t) * (1 - t) * Math.min(1, t * 5);
+    if (P.highlights) t += P.highlights * 0.3 * t * t * Math.min(1, (1 - t) * 5);
+    t = Math.min(1, Math.max(0, t));
     const s = t * t * (3 - 2 * t); t = t + P.contrast * 2 * (s - t);                 // S-curve
     const top = 255 - P.roll, bottom = P.fade;                                        // faded blacks, soft highlights
     const base = bottom + t * (top - bottom);
@@ -703,15 +854,17 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v8.4";
+  const VERSION = "v9";
 
-  const ASPECTS = [[3, 4], [4, 5], [1, 1]];
+  const ASPECTS = [[3, 4], [4, 5], [1, 1], [9, 16]];
   const LOOKS = {
     natural: { label: "Natural", css: "none" },
     golden:  { label: "Golden", css: "sepia(.22) saturate(1.2) contrast(1.06) brightness(1.03)" },
     slate:   { label: "Slate", css: "saturate(.7) contrast(1.08) brightness(.97) hue-rotate(-6deg)" },
     mono:    { label: "Mono", css: "grayscale(1) contrast(1.22)" },
     faded:   { label: "Faded", css: "contrast(.86) brightness(1.06) saturate(.85)" },
+    chrome:  { label: "Chrome", css: "saturate(1.3) contrast(1.15)" },
+    night:   { label: "Night", css: "contrast(.95) saturate(.9) brightness(1.04) hue-rotate(4deg)" },
   };
   const ZOOMS = [0.5, 1, 2, 4, 6];
   const SCAN_MS = 5000, HOLD_MS = 1400;
@@ -729,6 +882,7 @@ function sharpen(p, W, H, amount) {
     res: "", bestRes: {}, hq: false, lastBase: null, lastCrop: null, lastKey: "natural",
     tilt: null, options: [], optIdx: 0, critic: null, subjects: [], draft: null,
     border: "none", portrait: false, lastMask: null, devFramed: null, devFull: null,
+    adj: {}, strength: 100, firstKey: "natural", prevBase: null, lastRaw: null, lastRawCrop: null, libId: null, fullPending: false,
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
   const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
@@ -905,10 +1059,25 @@ function sharpen(p, W, H, amount) {
   function drawBox(c, b, W, H, dpr, color, dim) {
     const x = b.x * W, y = b.y * H, w = b.w * W, h = b.h * H;
     if (dim) { c.fillStyle = "rgba(0,0,0,.32)"; c.fillRect(0, 0, W, Math.max(0, y)); c.fillRect(0, y + h, W, H - y - h); c.fillRect(0, y, Math.max(0, x), h); c.fillRect(x + w, y, W - x - w, h); }
-    c.strokeStyle = color; c.lineWidth = 2 * dpr; c.strokeRect(x, y, w, h);
-    const t = 16 * dpr; c.lineWidth = 4 * dpr; c.beginPath();
-    for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { c.moveTo(px, py + sy * t); c.lineTo(px, py); c.lineTo(px + sx * t, py); }
+    const rad = Math.min(16 * dpr, w / 6, h / 6);
+    c.strokeStyle = color; c.lineWidth = 3.5 * dpr; c.beginPath();
+    if (c.roundRect) c.roundRect(x, y, w, h, rad); else c.rect(x, y, w, h);
     c.stroke();
+  }
+  // A short name for the shot, e.g. "golden hour portrait" — from the light and what the AI found.
+  function shotCaption() {
+    const light = { "warm light": "golden hour", "cool tones": "blue hour", "low light": "night", "muted colours": "soft light", "harsh contrast": "hard light", "even light": "daylight" }[state.auto?.why] || "";
+    const subj = { person: "portrait", face: "portrait", "dining table": "table", "potted plant": "plant", "cell phone": "phone", "sports ball": "ball", "teddy bear": "bear" }[state.subject] || state.subject || "scene";
+    return [light, subj].filter(Boolean).join(" ");
+  }
+  function caption(c, b, W, H, dpr, alpha = 1) {
+    const text = shotCaption(); if (!text) return;
+    c.save(); c.globalAlpha = alpha;
+    c.font = `600 ${13 * dpr}px "IBM Plex Sans", system-ui, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle";
+    const tw = c.measureText(text).width + 18 * dpr, bx = Math.min(W - tw / 2 - 6 * dpr, Math.max(tw / 2 + 6 * dpr, (b.x + b.w / 2) * W));
+    let by = (b.y + b.h) * H + 18 * dpr; if (by > H - 60 * dpr) by = b.y * H - 18 * dpr;
+    c.fillStyle = "rgba(0,0,0,.5)"; c.beginPath(); if (c.roundRect) c.roundRect(bx - tw / 2, by - 12 * dpr, tw, 24 * dpr, 8 * dpr); else c.rect(bx - tw / 2, by - 12 * dpr, tw, 24 * dpr); c.fill();
+    c.fillStyle = accent(); c.fillText(text, bx, by); c.restore();
   }
   function label(c, text, x, y, dpr, color) {
     c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center";
@@ -945,9 +1114,9 @@ function sharpen(p, W, H, amount) {
       const st = shownTrack();
       const sb = state.source === "live" ? (st && st.score > 0.65 ? st : null) : state.box;
       if (sb && p > 0.5) {
-        c.globalAlpha = Math.min(1, (p - 0.5) / 0.25); drawBox(c, sb, W, H, dpr, accent(), false);
-        if (state.subject) label(c, state.subject.toUpperCase(), (sb.x + sb.w / 2) * W, sb.y * H + 22 * dpr, dpr, accent());
-        c.globalAlpha = 1;
+        const al = Math.min(1, (p - 0.5) / 0.25);
+        c.globalAlpha = al; drawBox(c, sb, W, H, dpr, accent(), false); c.globalAlpha = 1;
+        caption(c, sb, W, H, dpr, al);
       }
       c.fillStyle = accent(); c.fillRect(0, H - 4 * dpr, W * p, 4 * dpr);
       return;
@@ -967,7 +1136,7 @@ function sharpen(p, W, H, amount) {
     }
     if (state.phase === "ready" && state.box) {
       drawBox(c, state.box, W, H, dpr, accent(), true);
-      if (state.subject) label(c, state.subject.toUpperCase(), (state.box.x + state.box.w / 2) * W, state.box.y * H + 22 * dpr, dpr, accent());
+      caption(c, state.box, W, H, dpr);
     }
     if (state.phase === "aiming") {
       const cx = W / 2, cy = H / 2, tb = shownTrack(), ok = tb && tb.score > 0.65, aligned = ok && !!state.alignedSince;
@@ -988,6 +1157,7 @@ function sharpen(p, W, H, amount) {
         c.globalAlpha = 0.25 + 0.2 * pulse; c.fillStyle = accent(); c.beginPath(); c.arc(bx, by, R, 0, 7); c.fill(); c.globalAlpha = 1;
         c.font = `500 ${10 * dpr}px "IBM Plex Mono", ui-monospace, monospace`; c.textAlign = "center"; c.fillStyle = accent();
         c.fillText("AIM HERE", bx, by - R - 6 * dpr);
+        caption(c, tb, W, H, dpr);
         c.setLineDash([6 * dpr, 6 * dpr]); c.lineWidth = 2 * dpr;
         c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
       }
@@ -1300,10 +1470,10 @@ function sharpen(p, W, H, amount) {
   }
 
   /* ---------- developing (the "darkroom") ---------- */
-  function develop(src, crop, key) {
+  function develop(src, crop, key, adj, preview, strength = state.strength) {
     const w = src.width, h = src.height, base = document.createElement("canvas"); base.width = w; base.height = h;
     const bx = base.getContext("2d"); bx.drawImage(src, 0, 0);
-    const P = LOOK_PARAMS[key];
+    const P = applyAdjust(lookAt(key, strength), adj), seed = state.lastShot?.seed || 1;
     if (state.portrait && state.lastMask) portraitBlur(base, state.lastMask);
     const img = bx.getImageData(0, 0, w, h), p = img.data, n = w * h;
     const [lr, lg, lb] = buildLUTs(p, n, P), sat = P.sat, gr = P.grain * 0.7;
@@ -1328,13 +1498,53 @@ function sharpen(p, W, H, amount) {
       bx.save(); bx.globalCompositeOperation = "screen"; bx.globalAlpha = P.halation; bx.imageSmoothingQuality = "high";
       bx.drawImage(sc, 0, 0, w, h); bx.restore();
     }
+    if (P.glow > 0) { // glow: a soft white bloom around the brightest parts (shrink, enlarge = blur)
+      const s1 = document.createElement("canvas"); s1.width = Math.max(8, Math.round(w / 20)); s1.height = Math.max(8, Math.round(h / 20));
+      const g1 = s1.getContext("2d"); g1.imageSmoothingQuality = "high"; g1.drawImage(base, 0, 0, s1.width, s1.height);
+      const gd = g1.getImageData(0, 0, s1.width, s1.height), q = gd.data;
+      for (let i = 0; i < q.length; i += 4) { const l = 0.299 * q[i] + 0.587 * q[i + 1] + 0.114 * q[i + 2], k = Math.max(0, (l - 165) / 90); q[i] *= k; q[i + 1] *= k; q[i + 2] *= k; }
+      g1.putImageData(gd, 0, 0);
+      bx.save(); bx.globalCompositeOperation = "screen"; bx.globalAlpha = Math.min(1, P.glow * 0.9); bx.imageSmoothingQuality = "high";
+      bx.drawImage(s1, 0, 0, w, h); bx.restore();
+    }
     const out = (cx, cy, cw, ch) => {
       // small crops (from zooming) are enlarged to at least 2048 px so they look good on a phone screen
-      const up = Math.max(1, 2048 / Math.max(cw, ch));
-      const c = document.createElement("canvas"); c.width = Math.round(cw * up); c.height = Math.round(ch * up);
+      const up = preview ? 1 : Math.max(1, 2048 / Math.max(cw, ch));
+      const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(cw * up)); c.height = Math.max(1, Math.round(ch * up));
       const x = c.getContext("2d"); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
       x.drawImage(base, cx, cy, cw, ch, 0, 0, c.width, c.height);
       if (up > 1.15) sharpenCanvas(c, 0.35);
+      const W = c.width, H = c.height;
+      if (P.leak > 0) { // light leak: warm glow bleeding in from one edge, like light getting into a film camera
+        const r = seededRandom(seed), right = r() < 0.5, gx = right ? W * 1.05 : -W * 0.05, gy = H * (0.2 + 0.6 * r());
+        x.save(); x.globalCompositeOperation = "screen";
+        const g = x.createRadialGradient(gx, gy, 0, gx, gy, Math.max(W, H) * 0.8);
+        g.addColorStop(0, `rgba(255,110,30,${Math.min(1, 1.1 * P.leak)})`); g.addColorStop(0.4, `rgba(255,60,25,${0.6 * P.leak})`); g.addColorStop(1, "rgba(255,60,20,0)");
+        x.fillStyle = g; x.fillRect(0, 0, W, H);
+        x.globalCompositeOperation = "multiply"; // tint the far side slightly red too, so it shows on bright scenes
+        const g3 = x.createRadialGradient(gx, gy, 0, gx, gy, Math.max(W, H) * 0.9);
+        g3.addColorStop(0, `rgba(255,${Math.round(255 - 120 * P.leak)},${Math.round(255 - 170 * P.leak)},1)`); g3.addColorStop(1, "rgba(255,255,255,1)");
+        x.fillStyle = g3; x.fillRect(0, 0, W, H); x.globalCompositeOperation = "screen";
+        const g2 = x.createLinearGradient(right ? W : 0, 0, right ? W * 0.62 : W * 0.38, 0);
+        g2.addColorStop(0, `rgba(255,205,130,${0.35 * P.leak})`); g2.addColorStop(1, "rgba(255,205,130,0)");
+        x.fillStyle = g2; x.fillRect(0, 0, W, H); x.restore();
+      }
+      if (P.dust > 0) { // dust specks and a few hairline scratches
+        const r = seededRandom(seed + 7), s = Math.max(W, H) / 1500, n = Math.round(P.dust * 140);
+        x.save();
+        for (let i = 0; i < n; i++) {
+          const px = r() * W, py = r() * H, rad = (0.4 + r() * 1.6) * s * (r() < 0.08 ? 3 : 1);
+          x.fillStyle = r() < 0.7 ? `rgba(255,255,255,${0.25 + r() * 0.45})` : `rgba(0,0,0,${0.2 + r() * 0.35})`;
+          x.beginPath(); x.ellipse(px, py, rad, rad * (0.5 + r() * 0.8), r() * 3.14, 0, 7); x.fill();
+        }
+        x.lineWidth = Math.max(1, 0.8 * s);
+        for (let i = 0, ns = Math.round(P.dust * 5); i < ns; i++) {
+          const sx = r() * W; x.strokeStyle = `rgba(255,255,255,${0.12 + r() * 0.25})`;
+          x.beginPath(); x.moveTo(sx, r() * H * 0.3);
+          x.bezierCurveTo(sx + (r() - 0.5) * 30 * s, H * 0.4, sx + (r() - 0.5) * 30 * s, H * 0.7, sx + (r() - 0.5) * 40 * s, H * (0.7 + r() * 0.3)); x.stroke();
+        }
+        x.restore();
+      }
       const v = x.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * 0.35, c.width / 2, c.height / 2, Math.hypot(c.width, c.height) / 2);
       v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${P.vignette})`);
       x.fillStyle = v; x.fillRect(0, 0, c.width, c.height);
@@ -1376,15 +1586,18 @@ function sharpen(p, W, H, amount) {
   // Develop the stored photo with a look (also used when you switch looks or portrait blur afterwards).
   async function renderShot(key) {
     state.lastKey = key;
-    const dev = develop(state.lastBase, state.lastCrop, key);
+    const dev = develop(state.lastBase, state.lastCrop, key, state.adj, false);
     state.dev = { framed: dev.framed, full: dev.full };
     await encodeShot();
   }
+  function shotMeta() {
+    const d = new Date(state.lastShot?.created || Date.now()), pad = (k) => String(k).padStart(2, "0");
+    return { frame: (d.getMinutes() % 36) + 1, line: [`'${pad(d.getFullYear() % 100)}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`, LOOKS[state.lastKey].label.toUpperCase(), state.lastShot?.subject?.toUpperCase(), state.lastShot?.zoomTxt].filter(Boolean).join("  ·  ") };
+  }
   // Add the border and turn the original + edited photos into JPEG files (fast — used when only the border or view changes).
   async function encodeShot() {
-    const key = state.lastKey, view = state.view, d = new Date(), pad = (k) => String(k).padStart(2, "0");
-    const meta = { frame: (d.getMinutes() % 36) + 1, line: [`'${pad(d.getFullYear() % 100)}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`, LOOKS[key].label.toUpperCase(), state.lastShot?.subject?.toUpperCase(), state.lastShot?.zoomTxt].filter(Boolean).join("  ·  ") };
-    const edited = addBorder(state.dev[view], state.border, meta), orig = state.orig[view];
+    const key = state.lastKey, view = state.view;
+    const edited = addBorder(state.dev[view], state.border, shotMeta()), orig = state.orig[view];
     const [eb, ob] = await Promise.all([toBlob(edited), toBlob(orig)]);
     const old = state.lastShot || {};
     if (old.editUrl) URL.revokeObjectURL(old.editUrl); if (old.origUrl) URL.revokeObjectURL(old.origUrl);
@@ -1394,17 +1607,162 @@ function sharpen(p, W, H, amount) {
     if (view === "framed") { $("#thumb").style.backgroundImage = `url(${state.lastShot.editUrl})`; $("#thumb").disabled = false; }
     renderRail();
   }
+  function scaledCopy(c, maxSide) {
+    const k = Math.min(1, maxSide / Math.max(c.width, c.height)), o = document.createElement("canvas");
+    o.width = Math.max(1, Math.round(c.width * k)); o.height = Math.max(1, Math.round(c.height * k));
+    const x = o.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(c, 0, 0, o.width, o.height); return o;
+  }
   async function finishShot(base, crop, note, raw, rawCrop) {
-    state.lastBase = base; state.lastCrop = crop; state.view = "framed";
-    state.orig = { framed: plainCrop(raw || base, rawCrop === undefined ? crop : rawCrop), full: plainCrop(raw || base, null) };
-    state.lastShot = { tip: state.claudeTip, subject: state.subject, note, critic: state.critic,
+    state.lastBase = base; state.lastCrop = crop; state.view = "framed"; state.adj = {}; state.strength = 100; state.firstKey = lookKey();
+    state.lastRaw = raw || base; state.lastRawCrop = rawCrop === undefined ? crop : rawCrop; state.libId = null;
+    state.orig = { framed: plainCrop(state.lastRaw, state.lastRawCrop), full: plainCrop(state.lastRaw, null) };
+    state.prevBase = scaledCopy(base, 1100);
+    state.lastShot = { tip: state.claudeTip, subject: state.subject, note, critic: state.critic, created: Date.now(), seed: (Math.random() * 1e9) | 0,
       zoomTxt: state.source === "live" ? `${(state.zoom * (crop ? 1 / Math.max(crop.w, crop.h) : 1)).toFixed(1)}×` : "" };
     setStatus("Developing…"); await pause();
     state.lastMask = personMask(base);
     state.portrait = false; // off by default — turn it on from the Developed screen
     await renderShot(lookKey());
     resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
+    saveToLibrary();
   }
+
+  /* ---------- the editor: live preview while you drag, full quality once you stop ---------- */
+  let previewBusy = false, previewAgain = false, fullTimer = 0, fullToken = 0;
+  async function drawPreview() {
+    if (previewBusy) { previewAgain = true; return; }
+    previewBusy = true;
+    try {
+      do {
+        previewAgain = false;
+        const dev = develop(state.prevBase, state.lastCrop, state.lastKey, state.adj, true);
+        const c = addBorder(dev[state.view], state.border, shotMeta());
+        const b = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+        const img = $("#imgEdit"); if (img.dataset.preview) URL.revokeObjectURL(img.dataset.preview);
+        img.dataset.preview = img.src = URL.createObjectURL(b);
+      } while (previewAgain);
+    } finally { previewBusy = false; }
+  }
+  function adjustChanged() {
+    drawPreview();
+    state.fullPending = true; $("#sheetLook").textContent = "Editing…";
+    clearTimeout(fullTimer);
+    fullTimer = setTimeout(async () => {
+      const tok = ++fullToken;
+      await renderShot(state.lastKey);
+      if (tok !== fullToken) return;
+      state.fullPending = false; openSheet(); saveToLibrary();
+    }, 900);
+  }
+  function buildEditor() {
+    for (const [k, label, min, max] of ADJUSTMENTS) {
+      const list = FX.includes(k) ? $("#fxList") : $("#adjList");
+      const row = document.createElement("label"); row.className = "adjrow";
+      const top = document.createElement("span"); top.className = "adjtop";
+      const name = document.createElement("span"); name.textContent = label;
+      const val = document.createElement("output"); val.id = "adjv-" + k; val.textContent = "0";
+      top.append(name, val);
+      const input = document.createElement("input"); input.type = "range"; input.id = "adj-" + k; input.min = min; input.max = max; input.step = 1; input.value = 0;
+      input.oninput = () => { state.adj[k] = Number(input.value); val.textContent = input.value > 0 && min < 0 ? "+" + input.value : input.value; editChanged(); };
+      input.ondblclick = () => { input.value = 0; input.oninput(); };
+      row.append(top, input); list.append(row);
+    }
+    $("#adjReset").onclick = () => { for (const k of TONE) delete state.adj[k]; syncEditor(); editChanged(); };
+    $("#fxReset").onclick = () => { for (const k of FX) delete state.adj[k]; syncEditor(); editChanged(); };
+  }
+  function syncEditor() {
+    for (const [k, , min] of ADJUSTMENTS) {
+      const v = Number(state.adj[k]) || 0, i = $("#adj-" + k); if (!i) continue;
+      i.value = v; $("#adjv-" + k).textContent = v > 0 && min < 0 ? "+" + v : String(v);
+    }
+  }
+
+  /* ---------- library: every shot is kept on this phone (IndexedDB), so you can re-edit it later ---------- */
+  let dbPromise = null;
+  function idb() {
+    if (!dbPromise) dbPromise = new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open("thirds", 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("shots", { keyPath: "id" });
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      } catch (e) { rej(e); }
+    });
+    return dbPromise;
+  }
+  async function dbDo(mode, fn) {
+    const db = await idb();
+    return new Promise((res, rej) => {
+      const tx = db.transaction("shots", mode), st = tx.objectStore("shots"); let out;
+      const req = fn(st); if (req) req.onsuccess = () => (out = req.result);
+      tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    });
+  }
+  const blobOf = (c, type = "image/jpeg", q = 0.93) => new Promise((r) => c.toBlob(r, type, q));
+  let saveTimer = 0, saving = Promise.resolve();
+  function saveToLibrary() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { saving = saving.then(saveNow).catch(() => {}); }, 300);
+  }
+  async function saveNow() {
+    if (!state.lastBase || !state.dev) return;
+    const thumb = await blobOf(scaledCopy(state.dev.framed, 420), "image/jpeg", 0.82);
+    const settings = { crop: state.lastCrop, rawCrop: state.lastRawCrop, key: state.lastKey, adj: { ...state.adj }, border: state.border, portrait: state.portrait,
+      strength: state.strength, firstKey: state.firstKey,
+      meta: { subject: state.lastShot.subject, note: state.lastShot.note, critic: state.lastShot.critic, zoomTxt: state.lastShot.zoomTxt, tip: state.lastShot.tip, seed: state.lastShot.seed, created: state.lastShot.created }, thumb };
+    if (state.libId) {
+      const id = state.libId, rec = await dbDo("readonly", (st) => st.get(id));
+      if (rec) { await dbDo("readwrite", (st) => st.put({ ...rec, ...settings })); return; }
+    }
+    const id = state.lastShot.created || Date.now();
+    const [base, raw, mask] = await Promise.all([blobOf(state.lastBase, "image/jpeg", 0.95), state.lastRaw === state.lastBase ? null : blobOf(state.lastRaw, "image/jpeg", 0.9),
+      state.lastMask ? blobOf(state.lastMask, "image/png") : null]);
+    await dbDo("readwrite", (st) => st.put({ id, base, raw, mask, ...settings }));
+    state.libId = id;
+    try { navigator.storage?.persist?.(); } catch (e) {}
+  }
+  async function toCanvas(blob) {
+    const bm = await createImageBitmap(blob), c = document.createElement("canvas"); c.width = bm.width; c.height = bm.height;
+    c.getContext("2d").drawImage(bm, 0, 0); bm.close?.(); return c;
+  }
+  async function loadShot(id) {
+    const rec = await dbDo("readonly", (st) => st.get(id)); if (!rec) return;
+    $("#libStatus").textContent = "Opening…";
+    const base = await toCanvas(rec.base), raw = rec.raw ? await toCanvas(rec.raw) : base, mask = rec.mask ? await toCanvas(rec.mask) : null;
+    state.lastBase = base; state.lastRaw = raw; state.lastCrop = rec.crop; state.lastRawCrop = rec.rawCrop === undefined ? rec.crop : rec.rawCrop;
+    state.orig = { framed: plainCrop(raw, state.lastRawCrop), full: plainCrop(raw, null) };
+    state.prevBase = scaledCopy(base, 1100); state.lastMask = mask; state.portrait = !!(rec.portrait && mask);
+    state.adj = { ...(rec.adj || {}) }; state.border = rec.border || "none"; state.view = "framed"; state.libId = id;
+    state.strength = rec.strength ?? 100; state.firstKey = rec.firstKey || rec.key;
+    state.lastShot = { ...(rec.meta || {}) };
+    await renderShot(LOOKS[rec.key] ? rec.key : "natural");
+    $("#libSheet").hidden = true; openSheet();
+  }
+  let libUrls = [];
+  async function openLibrary() {
+    $("#libSheet").hidden = false; $("#sheet").hidden = true;
+    const grid = $("#libGrid"); libUrls.forEach((u) => URL.revokeObjectURL(u)); libUrls = [];
+    let recs = [];
+    try { await saving; recs = await dbDo("readonly", (st) => st.getAll()); }
+    catch (e) { grid.textContent = ""; $("#libStatus").textContent = "The library isn't available here (private browsing or storage blocked)."; return; }
+    recs.sort((a, b) => b.id - a.id);
+    $("#libCount").textContent = recs.length === 1 ? "1 photo" : `${recs.length} photos`;
+    $("#libStatus").textContent = recs.length ? "Tap a photo to re-edit it. Photos are kept on this phone only." : "Your photos will appear here after you take one.";
+    grid.textContent = "";
+    for (const r of recs) {
+      const cell = document.createElement("div"); cell.className = "libcell";
+      const open = document.createElement("button"); open.className = "libopen"; open.setAttribute("aria-label", "Open photo");
+      const img = document.createElement("img"); const u = URL.createObjectURL(r.thumb); libUrls.push(u); img.src = u; img.alt = "";
+      open.append(img); open.onclick = () => loadShot(r.id);
+      const del = document.createElement("button"); del.className = "libdel"; del.textContent = "×"; del.setAttribute("aria-label", "Delete photo");
+      let armed = 0;
+      del.onclick = async () => {
+        if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = "×"; del.classList.remove("armed"); }, 3000); del.textContent = "Delete?"; del.classList.add("armed"); return; }
+        clearTimeout(armed); await dbDo("readwrite", (st) => st.delete(r.id)); if (state.libId === r.id) state.libId = null; openLibrary();
+      };
+      cell.append(open, del); grid.append(cell);
+    }
+  }
+
   let capturing = false;
   async function capture() {
     if (capturing) return; capturing = true;
@@ -1472,59 +1830,139 @@ function sharpen(p, W, H, amount) {
   };
   try { if (localStorage.getItem("thirds-hq") === "1") { state.hq = true; $("#hqBtn").setAttribute("aria-pressed", "true"); } } catch (e) {}
 
-  /* ---------- result sheet: original vs edited ---------- */
+  /* ---------- the editor screen: Looks · Adjust · Effects · Frames ---------- */
+  const TONE = ["exposure", "contrast", "highlights", "shadows", "warmth", "tint", "saturation", "fade"];
+  const FX = ["grain", "glow", "leak", "dust", "vignette"];
+  let edTab = "looks", thumbsFor = null;
   function openSheet() {
     const s = state.lastShot; if (!s || !s.editUrl) return;
-    $("#imgOrig").src = s.origUrl; $("#imgEdit").src = s.editUrl;
-    $("#sheetLook").textContent = [s.look, s.subject, s.note, s.size].filter(Boolean).join(" · ");
+    const ie = $("#imgEdit"); if (ie.dataset.preview) { URL.revokeObjectURL(ie.dataset.preview); delete ie.dataset.preview; }
+    ie.src = s.editUrl; $("#imgOrig").src = s.origUrl;
+    $("#sheetLook").textContent = [LOOKS[state.lastKey].label + (state.strength < 100 ? ` ${state.strength}%` : ""), s.subject, s.note, s.size].filter(Boolean).join(" · ");
     const tipEl = $("#sheetTip"); tipEl.hidden = !s.tip; tipEl.textContent = "";
     if (s.tip) { const b = document.createElement("b"); b.textContent = "Claude's tip: "; tipEl.append(b, s.tip); }
-    const cr = $("#critic"); cr.textContent = ""; cr.hidden = !s.critic;
+    const cr = $("#critic"); cr.hidden = !s.critic; cr.textContent = "";
     if (s.critic) {
-      const sc = document.createElement("div"); sc.className = "score"; sc.innerHTML = `<b>${s.critic.score}</b><span>shot score</span>`; cr.append(sc);
-      const ul = document.createElement("ul");
-      for (const n of s.critic.notes) { const li = document.createElement("li"); li.className = n.ok ? "ok" : "no"; li.textContent = (n.ok ? "✓ " : "✗ ") + n.text; ul.append(li); }
-      cr.append(ul);
+      const b = document.createElement("b"); b.textContent = s.critic.score;
+      const t = document.createElement("span");
+      t.textContent = s.critic.notes.slice(0, 3).map((n) => (n.ok ? "✓ " : "✗ ") + n.text).join("  ·  ");
+      cr.append(b, t);
     }
-    $("#sheetLooks").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.look === state.lastKey));
-    $("#sheetBorders").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.border === state.border));
     $("#viewSeg").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === state.view));
+    $("#sheetBorders").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.border === state.border));
+    $("#lookStrip").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.look === state.lastKey));
     const pb = $("#portraitBtn"); pb.hidden = !state.lastMask; pb.setAttribute("aria-pressed", state.portrait);
-    $("#saveHelp").textContent = "Tap Save, or press and hold a photo and choose Save to Photos.";
+    $("#lookStrength").value = state.strength; $("#strengthVal").textContent = state.strength + "%";
+    syncEditor(); markTabs(); showBefore(); renderLookThumbs();
+    $("#delBtn").textContent = "Delete"; $("#delBtn").classList.remove("armed");
+    $("#saveHelp").textContent = "";
     $("#sheet").hidden = false;
   }
-  async function busy(work) {
-    const btns = $("#sheet").querySelectorAll(".sheet-card button:not(.done)");
-    btns.forEach((x) => (x.disabled = true)); $("#sheetLook").textContent = "Developing…"; await pause();
-    try { await work(); } finally { btns.forEach((x) => (x.disabled = false)); openSheet(); }
+  function markTabs() {
+    const changed = (keys) => keys.some((k) => Number(state.adj[k]));
+    const dots = { looks: state.lastKey !== state.firstKey || state.strength < 100, adjust: changed(TONE), effects: changed(FX) || state.portrait, frames: state.border !== "none" };
+    document.querySelectorAll(".ed-tabs button").forEach((b) => { b.classList.toggle("dot", !!dots[b.dataset.tab]); b.setAttribute("aria-selected", b.dataset.tab === edTab); });
+    document.querySelectorAll(".ed-panel").forEach((p) => (p.hidden = p.dataset.tab !== edTab));
   }
-  (() => {
-    const looks = $("#sheetLooks");
-    for (const key of Object.keys(LOOKS)) {
-      const b = document.createElement("button"); b.className = "look"; b.dataset.look = key; b.textContent = LOOKS[key].label;
-      b.onclick = () => { if (state.lastBase && key !== state.lastKey) busy(() => renderShot(key)); };
-      looks.append(b);
+  // Small previews of YOUR photo in every look.
+  async function renderLookThumbs() {
+    const id = state.lastShot?.seed + ":" + state.view + ":" + (state.lastCrop ? state.lastCrop.x.toFixed(3) : "f");
+    if (thumbsFor === id || !state.prevBase) return; thumbsFor = id;
+    const tiny = scaledCopy(state.prevBase, state.lastCrop ? 360 : 180);
+    for (const b of $("#lookStrip").querySelectorAll("button")) {
+      const dev = develop(tiny, state.view === "framed" ? state.lastCrop : null, b.dataset.look, {}, true, 100);
+      const c = scaledCopy(dev.framed, 140), img = b.querySelector("img");
+      const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.8));
+      if (thumbsFor !== id) return;
+      if (img.dataset.u) URL.revokeObjectURL(img.dataset.u);
+      img.dataset.u = img.src = URL.createObjectURL(blob);
+      await new Promise((r) => setTimeout(r, 0));
     }
+  }
+  // Before/after: hold the photo, or switch "Before" on.
+  let holding = false;
+  function showBefore() {
+    const before = holding || $("#beforeBtn").getAttribute("aria-pressed") === "true";
+    $("#imgOrig").hidden = !before; $("#edBadge").hidden = !before;
+    $("#saveBtn").textContent = before ? "✓ Save original" : "✓ Save";
+  }
+  function editChanged() { markTabs(); adjustChanged(); }
+  (() => {
+    // tabs
+    document.querySelectorAll(".ed-tabs button").forEach((b) => (b.onclick = () => { edTab = b.dataset.tab; markTabs(); }));
+    // looks strip
+    const strip = $("#lookStrip");
+    for (const key of Object.keys(LOOKS)) {
+      const b = document.createElement("button"); b.className = "lookthumb"; b.dataset.look = key; b.setAttribute("aria-label", LOOKS[key].label);
+      const img = document.createElement("img"); img.alt = "";
+      const name = document.createElement("span"); name.textContent = LOOKS[key].label.toUpperCase();
+      const knob = document.createElement("i"); knob.setAttribute("aria-hidden", "true"); knob.textContent = "⚙";
+      b.append(img, knob, name);
+      b.onclick = () => {
+        if (!state.lastBase) return;
+        if (key === state.lastKey) { $("#strengthRow").hidden = !$("#strengthRow").hidden; return; } // tap again: strength
+        state.lastKey = key; strip.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+        $("#sheetLook").textContent = LOOKS[key].label; editChanged();
+      };
+      strip.append(b);
+    }
+    $("#lookStrength").oninput = (e) => { state.strength = Number(e.target.value); $("#strengthVal").textContent = state.strength + "%"; editChanged(); };
+    // frames
     const borders = $("#sheetBorders");
     for (const [key, name] of Object.entries(BORDERS)) {
-      const b = document.createElement("button"); b.className = "look"; b.dataset.border = key; b.textContent = name;
-      b.onclick = () => { if (state.dev && key !== state.border) { state.border = key; busy(encodeShot); } };
+      const b = document.createElement("button"); b.className = "framechip"; b.dataset.border = key;
+      const sw = document.createElement("i"); sw.className = "sw sw-" + key; const t = document.createElement("span"); t.textContent = name;
+      b.append(sw, t);
+      b.onclick = () => { if (!state.dev || key === state.border) return; state.border = key; borders.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); editChanged(); };
       borders.append(b);
     }
-    $("#portraitBtn").onclick = () => { if (!state.lastMask) return; state.portrait = !state.portrait; busy(() => renderShot(state.lastKey)); };
-    $("#viewSeg").querySelectorAll("button").forEach((b) => (b.onclick = () => { if (state.dev && b.dataset.view !== state.view) { state.view = b.dataset.view; busy(encodeShot); } }));
+    $("#portraitBtn").onclick = () => { if (!state.lastMask) return; state.portrait = !state.portrait; $("#portraitBtn").setAttribute("aria-pressed", state.portrait); editChanged(); };
+    $("#viewSeg").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+      if (state.dev && b.dataset.view !== state.view) { state.view = b.dataset.view; busy(encodeShot); }
+    }));
+    $("#beforeBtn").onclick = () => { const on = $("#beforeBtn").getAttribute("aria-pressed") !== "true"; $("#beforeBtn").setAttribute("aria-pressed", on); showBefore(); };
+    const ph = $("#edPhoto");
+    ph.addEventListener("pointerdown", () => { holding = true; showBefore(); });
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) ph.addEventListener(ev, () => { if (holding) { holding = false; showBefore(); } });
+    ph.addEventListener("contextmenu", (e) => e.preventDefault());
+    // delete (tap twice)
+    let armed = 0;
+    $("#delBtn").onclick = async () => {
+      const btn = $("#delBtn");
+      if (!armed) { armed = setTimeout(() => { armed = 0; btn.textContent = "Delete"; btn.classList.remove("armed"); }, 3000); btn.textContent = "Tap again to delete"; btn.classList.add("armed"); return; }
+      clearTimeout(armed); armed = 0;
+      clearTimeout(fullTimer); fullToken++; clearTimeout(saveTimer);
+      await saving;
+      if (state.libId) { try { await dbDo("readwrite", (st) => st.delete(state.libId)); } catch (e) {} }
+      state.libId = null; state.lastBase = null; state.dev = null; state.lastShot = null;
+      $("#thumb").style.backgroundImage = ""; $("#railLast").hidden = true;
+      $("#sheet").hidden = true; setStatus("Photo deleted.");
+    };
+    // save (to Photos, through the share sheet)
+    $("#saveBtn").onclick = async () => {
+      const before = $("#beforeBtn").getAttribute("aria-pressed") === "true";
+      if (!before && state.fullPending) { $("#saveHelp").textContent = "Finishing your edit at full quality. Tap Save again in a second."; return; }
+      const blob = before ? state.lastShot?.orig : state.lastShot?.edit; if (!blob) return;
+      const file = new File([blob], `thirds-${before ? "original" : "edited"}-${Date.now()}.jpg`, { type: "image/jpeg" });
+      try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); $("#saveHelp").textContent = ""; return; } }
+      catch (e) { if (e?.name === "AbortError") return; }
+      $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo for a moment, then choose Save to Photos.";
+    };
   })();
-  $("#thumb").onclick = openSheet;
+  async function busy(work) {
+    const btns = $("#sheet").querySelectorAll("button:not(#closeSheet)");
+    btns.forEach((x) => (x.disabled = true)); $("#sheetLook").textContent = "Developing…"; await pause();
+    clearTimeout(fullTimer); fullToken++; state.fullPending = false;
+    try { await work(); } finally { btns.forEach((x) => (x.disabled = false)); openSheet(); saveToLibrary(); }
+  }
+  $("#thumb").onclick = openLibrary;
   $("#railLast").onclick = openSheet;
+  $("#openLib").onclick = openLibrary;
   $("#closeSheet").onclick = () => ($("#sheet").hidden = true);
-  $("#sheet").onclick = (e) => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
-  document.querySelectorAll("[data-save]").forEach((btn) => (btn.onclick = async () => {
-    const which = btn.dataset.save, blob = state.lastShot?.[which]; if (!blob) return;
-    const file = new File([blob], `thirds-${which === "orig" ? "original" : "edited"}-${Date.now()}.jpg`, { type: "image/jpeg" });
-    try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; } }
-    catch (e) { if (e?.name === "AbortError") return; }
-    $("#saveHelp").textContent = "Saving isn't allowed from here. Press and hold the photo, then choose Save to Photos.";
-  }));
+  $("#closeLib").onclick = () => ($("#libSheet").hidden = true);
+  $("#libSheet").onclick = (e) => { if (e.target.id === "libSheet") $("#libSheet").hidden = true; };
+  buildEditor();
+  idb().then(() => dbDo("readonly", (st) => st.count())).then((n) => { if (n) $("#thumb").disabled = false; }).catch(() => {});
 
   /* ---------- draw your own frame ---------- */
   // Drag a box on the viewfinder. Thirds then guides you to it (live) or develops it (photo).

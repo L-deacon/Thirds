@@ -82,6 +82,28 @@ button:focus-visible, .src:focus-within, input:focus-visible { outline: 2px soli
   background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg); padding: 3px 7px; border-radius: 5px; }
 .app[data-layout="rail"] .looks { flex-wrap: wrap; overflow: visible; }
 .app[data-layout="rail"] .status { text-align: left; }
+/* compact side menu for small wide screens (iPhone Duo outer screen, phones turned sideways) */
+.app[data-layout="rail"][data-compact] { gap: 6px 12px; grid-template-columns: var(--vfw, 55%) minmax(200px, 1fr); padding-block: 6px; }
+.app[data-layout="rail"][data-compact] header { gap: 6px; }
+.app[data-layout="rail"][data-compact] .brand h1 { font-size: 20px; }
+.app[data-layout="rail"][data-compact] .readout { display: none; }
+.app[data-layout="rail"][data-compact] .toggles { gap: 3px; flex-wrap: wrap; }
+.app[data-layout="rail"][data-compact] .tog { padding: 4px 7px; font-size: 10px; }
+.app[data-layout="rail"][data-compact] .sources { gap: 6px; }
+.app[data-layout="rail"][data-compact] .src { padding: 7px 8px; font-size: 13px; }
+.app[data-layout="rail"][data-compact] .railpanel { gap: 8px; }
+.app[data-layout="rail"][data-compact] #railIdle, .app[data-layout="rail"][data-compact] .raillast { display: none !important; }
+.app[data-layout="rail"][data-compact] .railopt { padding: 6px 8px; }
+.app[data-layout="rail"][data-compact] .railopt b { font-size: 20px; }
+.app[data-layout="rail"][data-compact] .railpanel .critic { display: none; }
+.app[data-layout="rail"][data-compact] .dock { gap: 6px; }
+.app[data-layout="rail"][data-compact] .status { font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 0; }
+.app[data-layout="rail"][data-compact] .looks { flex-wrap: nowrap; overflow-x: auto; }
+.app[data-layout="rail"][data-compact] .look { padding: 5px 10px; font-size: 12px; }
+.app[data-layout="rail"][data-compact] .controls { padding-bottom: 0; }
+.app[data-layout="rail"][data-compact] .thumb { width: 42px; height: 42px; }
+.app[data-layout="rail"][data-compact] .shutter { width: 62px; height: 62px; }
+.app[data-layout="rail"][data-compact] .round i { width: 38px; height: 38px; font-size: 16px; }
 
 .vf .hint { bottom: calc(12px + var(--clear, 0px)); }
 .zooms { bottom: calc(12px + var(--clear, 0px)) !important; }
@@ -213,9 +235,9 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .editor { position: fixed; inset: 0; z-index: 30; background: var(--void); color: var(--fg);
   padding: env(safe-area-inset-top, 0px) max(12px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 0px)); }
 .ed-inner { height: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-block: 10px; }
-.ed-left { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.ed-left { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .ed-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.ed-top { display: flex; align-items: center; gap: 8px; }
+.ed-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ed-icon { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 15px; flex: none; }
 .ed-seg { flex: 1; max-width: 220px; margin-right: auto; }
 .ed-seg button { padding: 6px; font-size: 12px; }
@@ -270,10 +292,24 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .editor button:disabled { opacity: 0.5; }
 .editor .savehelp:empty { display: none; }
 /* wide screens: photo on the left, editing tools on the right */
-@media (min-width: 640px) and (min-aspect-ratio: 1/1) {
-  .ed-inner { max-width: none; flex-direction: row; gap: 20px; }
-  .ed-right { width: 360px; flex: none; justify-content: flex-end; }
+@media (min-aspect-ratio: 21/20) and (min-width: 440px) {
+  .ed-inner { max-width: none; flex-direction: row; gap: 16px; }
+  .ed-right { width: min(360px, 50%); flex: none; justify-content: flex-end; }
   .ed-panel { max-height: none; flex: 1; }
+}
+/* small wide screens (iPhone Duo outer screen): tighter editor */
+@media (min-aspect-ratio: 21/20) and (max-height: 559px) {
+  .ed-inner { gap: 12px; padding-block: 6px; }
+  .ed-top { gap: 6px; } .ed-icon { width: 32px; height: 32px; } .ed-pill { padding: 5px 9px; font-size: 12px; }
+  .ed-seg { max-width: 150px; }
+  .ed-right { gap: 6px; } .ed-critic { display: none; } .ed-hint { display: none; }
+  .ed-tabs { align-self: stretch; } .ed-tabs button { flex: 1; padding: 6px 2px; font-size: 12px; }
+  .ed-tabs button.dot::after { top: 3px; right: 3px; }
+  .ed-seg { flex: 0 1 118px; } .ed-seg button { padding: 5px 4px; font-size: 11px; }
+  .ed-bottom { gap: 6px; } .ed-del { flex: 1; } .ed-save { flex: 1.3; }
+  .lookthumb, .lookthumb img { width: 64px; } .lookthumb img { height: 82px; } .lookthumb i { top: 28px; }
+  .adjlist { gap: 8px; } .framechip .sw { width: 44px; height: 56px; }
+  .ed-del, .ed-save { padding: 10px; font-size: 14px; }
 }
 @media (min-width: 600px) and (max-aspect-ratio: 1/1) { .adjlist { grid-template-columns: 1fr 1fr; } .ed-inner { max-width: 760px; } }
 /* library */
@@ -854,7 +890,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v9";
+  const VERSION = "v9.1";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1], [9, 16]];
   const LOOKS = {
@@ -1000,9 +1036,10 @@ function sharpen(p, W, H, amount) {
   const appEl = document.querySelector(".app"), dock = document.getElementById("dock");
   function chooseLayout() {
     const w = window.innerWidth, h = window.innerHeight;
-    // short, stubby screens (like the iPhone Duo's outer screen) also get the full-picture layout
-    const mode = w >= 600 && w / h > 1.05 ? "rail" : w >= 560 || w / h > 0.56 ? "big" : "";
-    const compact = mode === "big" && w < 560 ? "1" : "";
+    // Any screen wider than it is tall (the iPhone Duo's outer screen, the inner screen sideways, a phone sideways)
+    // gets the picture on the left and a side menu on the right. Tall-but-stubby screens get the full-picture layout.
+    const mode = w / h > 1.05 && w >= 440 ? "rail" : w >= 560 || w / h > 0.56 ? "big" : "";
+    const compact = (mode === "big" && w < 560) || (mode === "rail" && (h < 560 || w < 760)) ? "1" : "";
     if (appEl.dataset.layout !== mode) appEl.dataset.layout = mode;
     if ((appEl.dataset.compact || "") !== compact) { if (compact) appEl.dataset.compact = compact; else delete appEl.dataset.compact; }
     return mode;
@@ -1011,7 +1048,8 @@ function sharpen(p, W, H, amount) {
     const mode = chooseLayout();
     if (mode === "rail") {
       const avail = appEl.clientWidth, sh = stage.getBoundingClientRect().height;
-      const want = Math.round(Math.min(sh * aspect(), avail - 280 - 20));
+      const side = appEl.dataset.compact ? 210 + 12 : 280 + 20; // room the side menu needs
+      const want = Math.round(Math.max(120, Math.min(sh * aspect(), avail - side)));
       if (appEl.style.getPropertyValue("--vfw") !== want + "px") appEl.style.setProperty("--vfw", want + "px");
     } else appEl.style.removeProperty("--vfw");
     const r = stage.getBoundingClientRect(); let w = r.width, h = w / aspect();

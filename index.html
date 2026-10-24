@@ -107,7 +107,7 @@ button:focus-visible, .src:focus-within, input:focus-visible { outline: 2px soli
 
 .vf .hint { bottom: calc(12px + var(--clear, 0px)); }
 .zooms { bottom: calc(12px + var(--clear, 0px)) !important; }
-.vf.has-zoom .hint { bottom: calc(58px + var(--clear, 0px)); }
+.vf.has-zoom .hint { bottom: calc(68px + var(--clear, 0px)); }
 @media (min-width: 600px) {
   .sheet { align-items: center; }
   .sheet-card { max-width: 900px; border-radius: 20px; border: 1px solid var(--line); max-height: 94%; }
@@ -145,7 +145,6 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .vf video, .vf canvas.still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .vf video { transition: transform 0.6s cubic-bezier(.2, .7, .2, 1), filter 0.6s ease; }
 .vf .lens { position: absolute; inset: 0; transition: transform 0.35s ease; }
-.vf.has-zoom .hint { bottom: 58px; }
 .zooms { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 999px;
   background: color-mix(in srgb, var(--void) 60%, transparent); }
 .zooms button { width: 36px; height: 36px; border-radius: 50%; border: none; background: color-mix(in srgb, var(--panel) 80%, transparent);
@@ -346,6 +345,35 @@ html[data-side] .ed-seg { flex: none; flex-direction: column; max-width: none; m
 html[data-side] .ed-seg button { padding: 8px 0; font-size: 11px; }
 html[data-side] .ed-pill { width: min(60px, calc(var(--side-w, 80px) - 8px)); padding: 8px 0; font-size: 11px; text-align: center; }
 html[data-side] .app:not([data-layout]) .stage, html[data-side] .app[data-layout=""] .stage { margin-top: 0; }
+/* ---------- v10: Framed-style touches ---------- */
+.status.guide { color: var(--accent); font-weight: 600; font-size: 14px; }
+.shutter.holding { background: conic-gradient(var(--accent) calc(var(--p, 0) * 1turn), color-mix(in srgb, var(--fg) 15%, transparent) 0); border-color: var(--accent); }
+.flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 4; }
+.popmenu { position: fixed; z-index: 40; min-width: 200px; max-width: calc(100vw - 16px); padding: 6px; border-radius: 16px; background: color-mix(in srgb, var(--panel) 96%, transparent);
+  border: 1px solid var(--line); box-shadow: 0 12px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 2px; }
+.popmenu[hidden] { display: none; }
+#shapeMenu { flex-direction: row; min-width: 0; gap: 4px; }
+#shapeMenu button { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; width: 54px; height: 70px; padding: 6px 0; border: none; border-radius: 10px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+#shapeMenu button i { display: block; height: 34px; max-width: 38px; border: 2px solid currentColor; border-radius: 4px; }
+#shapeMenu button[aria-checked="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.menurow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 10px; border: none; border-radius: 10px; background: transparent; text-align: left; font-size: 14px; }
+.menurow:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.menurow span { display: flex; flex-direction: column; gap: 2px; }
+.menurow small { font-size: 11px; color: var(--muted); }
+.menurow i { flex: none; width: 40px; height: 24px; border-radius: 12px; background: var(--line); position: relative; transition: background .15s; }
+.menurow i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--fg); transition: transform .15s; }
+.menurow[aria-pressed="true"] i { background: var(--accent); }
+.menurow[aria-pressed="true"] i::after { transform: translateX(16px); background: var(--accent-ink); }
+.lookflash { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--mono); font-size: 13px; letter-spacing: 0.2em;
+  background: color-mix(in srgb, var(--void) 65%, transparent); padding: 8px 14px; border-radius: 8px; opacity: 0; pointer-events: none; }
+/* library as a film contact sheet */
+#libSheet .sheet-card { background: #0e0c0b; }
+.libgrid { gap: 14px 6px; padding: 14px 8px; border-radius: 10px; background: #15110e;
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(225,215,195,.13) 10px 16px); background-size: 100% 6px; background-repeat: repeat-x; background-position: 0 3px; }
+.libcell { padding-bottom: 16px; }
+.libcell .libopen { bottom: 16px; border-radius: 3px; }
+.libnum { position: absolute; left: 2px; bottom: 0; font-family: var(--mono); font-size: 10px; color: #f08a3c; letter-spacing: 0.06em; }
+@media (prefers-reduced-motion: reduce) { .menurow i, .menurow i::after { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .vf video, .vf .lens { transition: none; } .round.busy i { animation: none; } .shutter span { transition: none; } }
 </style>
 
@@ -356,10 +384,8 @@ html[data-side] .app:not([data-layout]) .stage, html[data-side] .app[data-layout
       <span class="readout" id="readout">3:4 · Sample</span>
     </div>
     <div class="toggles">
-      <button class="tog" id="aspectBtn" aria-label="Change photo shape">3:4</button>
-      <button class="tog" id="gridBtn" aria-pressed="true">Grid</button>
-      <button class="tog" id="dateBtn" aria-pressed="true">Date</button>
-      <button class="tog" id="hqBtn" aria-pressed="false" aria-label="HQ mode: take a full-quality iPhone photo">HQ</button>
+      <button class="tog" id="aspectBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Photo shape"><span id="aspectLabel">3:4</span> ⌄</button>
+      <button class="tog" id="moreBtn" aria-haspopup="menu" aria-expanded="false" aria-label="More settings">•••</button>
     </div>
   </header>
 
@@ -426,6 +452,14 @@ html[data-side] .app:not([data-layout]) .stage, html[data-side] .app[data-layout
 
 <nav class="sidestrip" id="sideStrip" aria-label="Camera options"></nav>
 
+<div class="popmenu" id="shapeMenu" role="menu" aria-label="Photo shape" hidden></div>
+<div class="popmenu" id="moreMenu" role="menu" aria-label="Settings" hidden>
+  <button class="menurow" id="gridBtn" aria-pressed="true"><span>Grid lines</span><i></i></button>
+  <button class="menurow" id="dateBtn" aria-pressed="true"><span>Date stamp</span><i></i></button>
+  <button class="menurow" id="soundBtn" aria-pressed="true"><span>Shutter sound</span><i></i></button>
+  <button class="menurow" id="hqBtn" aria-pressed="false" aria-label="HQ mode: take a full-quality iPhone photo"><span>HQ photos<small>Use the iPhone camera for full quality</small></span><i></i></button>
+</div>
+
 <div class="editor" id="sheet" role="dialog" aria-label="Edit photo" hidden>
   <div class="ed-inner">
     <div class="ed-left">
@@ -441,6 +475,7 @@ html[data-side] .app:not([data-layout]) .stage, html[data-side] .app[data-layout
         <img id="imgEdit" alt="Edited photo">
         <img id="imgOrig" alt="Original photo, no edits" hidden>
         <span class="ed-badge" id="edBadge" hidden>Original</span>
+        <span class="lookflash" id="lookFlash" aria-hidden="true"></span>
       </div>
       <p class="ed-meta" id="sheetLook">Auto look</p>
     </div>
@@ -918,7 +953,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v9.2";
+  const VERSION = "v10";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1], [9, 16]];
   const LOOKS = {
@@ -946,7 +981,7 @@ function sharpen(p, W, H, amount) {
     res: "", bestRes: {}, hq: false, lastBase: null, lastCrop: null, lastKey: "natural",
     tilt: null, options: [], optIdx: 0, critic: null, subjects: [], draft: null,
     border: "none", portrait: false, lastMask: null, devFramed: null, devFull: null,
-    adj: {}, strength: 100, firstKey: "natural", prevBase: null, lastRaw: null, lastRawCrop: null, libId: null, fullPending: false,
+    sound: true, adj: {}, strength: 100, firstKey: "natural", prevBase: null, lastRaw: null, lastRawCrop: null, libId: null, fullPending: false,
   };
   const aspect = () => ASPECTS[state.aspectIdx][0] / ASPECTS[state.aspectIdx][1];
   const lookKey = () => (state.look === "auto" ? state.auto?.look || "natural" : state.look);
@@ -1183,6 +1218,7 @@ function sharpen(p, W, H, amount) {
     return { ...t, x: t.x + px, y: t.y + py };
   }
   function drawOverlay(now) {
+    if (!(state.phase === "aiming" && state.alignedSince)) shutter.classList.remove("holding");
     const c = overlay.getContext("2d"), W = overlay.width, H = overlay.height, dpr = window.devicePixelRatio || 1;
     c.clearRect(0, 0, W, H);
     if (state.grid && state.phase !== "scanning" && !(state.phase === "aiming" && state.alignedSince)) {
@@ -1232,6 +1268,7 @@ function sharpen(p, W, H, amount) {
       if (aligned) { // zoomed onto the shot: the whole viewfinder is now the photo
         drawBox(c, { x: 0.03, y: 0.03, w: 0.94, h: 0.94 }, W, H, dpr, "#ffffff", false);
         const p = Math.min(1, (now - state.alignedSince) / HOLD_MS);
+        shutter.style.setProperty("--p", state.hq ? 1 : p); shutter.classList.add("holding");
         c.fillStyle = "#ffffff"; c.fillRect(0, H - 5 * dpr, W * p, 5 * dpr);
         const total = state.zoom * (1 / Math.max(tb.w, tb.h));
         label(c, `${LOOKS[lookKey()].label.toUpperCase()} · ${total.toFixed(1)}×`, cx, 34 * dpr, dpr, "#ffffff");
@@ -1264,6 +1301,7 @@ function sharpen(p, W, H, amount) {
     shutter.querySelector("span").textContent = p === "ready" ? "✓" : "";
     $("#resetBtn").hidden = !(p === "aiming" || p === "ready");
     $("#target").hidden = p !== "aiming";
+    hint.hidden = p === "aiming"; // while aiming, directions show in yellow under the picture
     if (p !== "aiming" && p !== "ready") { $("#picker").hidden = true; tag.hidden = state.source !== "sample"; }
     updateAsk(); setReadout(); renderRail();
   }
@@ -1406,7 +1444,7 @@ function sharpen(p, W, H, amount) {
       state.trackIdx = null;
       if (state.alignedSince) { state.alignedSince = 0; setZoom(null); }
       if (!state.lostSince) state.lostSince = now;
-      if (now - state.lostSince > 400) { state.track = null; motion.atMatch = null; if (state.phase === "aiming") hint.innerHTML = "Lost it · point back at the <b>target</b>"; }
+      if (now - state.lostSince > 400) { state.track = null; motion.atMatch = null; if (state.phase === "aiming") setGuide("Lost it — point back at the target"); }
       return;
     }
     state.lostSince = 0; state.trackIdx = m.idx;
@@ -1427,14 +1465,15 @@ function sharpen(p, W, H, amount) {
     if (!centered) {
       if (state.alignedSince) setZoom(null);
       state.alignedSince = 0;
-      hint.innerHTML = Math.abs(dx) >= Math.abs(dy)
-        ? (dx > 0 ? "Move <b>right</b> ›" : "‹ Move <b>left</b>")
-        : (dy > 0 ? "Tilt <b>down</b> ↓" : "Tilt <b>up</b> ↑");
+      const far = Math.max(Math.abs(dx), Math.abs(dy)) > 0.2 ? "" : " a little";
+      setGuide(Math.abs(dx) >= Math.abs(dy)
+        ? (dx > 0 ? `Move right${far} ›` : `‹ Move left${far}`)
+        : (dy > 0 ? `Tilt down${far} ↓` : `Tilt up${far} ↑`));
       return;
     }
-    if (!state.alignedSince) { state.alignedSince = now; setZoom(t); }
-    if (state.hq) { hint.innerHTML = "<b>Locked</b> · tap shutter for HQ"; return; }
-    hint.innerHTML = "<b>Locked</b> · hold steady";
+    if (!state.alignedSince) { state.alignedSince = now; setZoom(t); playSound("lock"); }
+    if (state.hq) { setGuide("Centred — tap the shutter for an HQ photo"); return; }
+    setGuide(now - state.alignedSince < HOLD_MS * 0.5 ? "Centred — framing up…" : "Hold steady…");
     if (now - state.alignedSince > HOLD_MS) capture();
   }
 
@@ -1712,8 +1751,40 @@ function sharpen(p, W, H, amount) {
     state.lastMask = personMask(base);
     state.portrait = false; // off by default — turn it on from the Developed screen
     await renderShot(lookKey());
-    resetToIdle(); openSheet(); setStatus("Press the shutter to scan again.");
+    resetToIdle(); openSheet(); reveal(); setStatus("Press the shutter to scan again.");
     saveToLibrary();
+  }
+
+  /* ---------- little camera touches: shutter sound, flash, developing reveal ---------- */
+  let audio = null;
+  function playSound(kind) {
+    if (!state.sound) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+      const t = audio.currentTime, out = audio.createGain(); out.connect(audio.destination);
+      if (kind === "lock") { // soft tick when you line up
+        const o = audio.createOscillator(); o.frequency.value = 1800; o.type = "sine";
+        out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(0.08, t + 0.005); out.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        o.connect(out); o.start(t); o.stop(t + 0.07); return;
+      }
+      // shutter: two short mechanical clicks made from filtered noise
+      const len = Math.floor(audio.sampleRate * 0.12), buf = audio.createBuffer(1, len, audio.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) { const e1 = Math.exp(-i / (audio.sampleRate * 0.006)), j = i - audio.sampleRate * 0.07, e2 = j > 0 ? Math.exp(-j / (audio.sampleRate * 0.01)) : 0; d[i] = (Math.random() * 2 - 1) * (e1 + 0.7 * e2); }
+      const src = audio.createBufferSource(), f = audio.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 2400; f.Q.value = 0.7;
+      out.gain.value = 0.35; src.buffer = buf; src.connect(f); f.connect(out); src.start(t);
+    } catch (e) { /* no sound available */ }
+  }
+  // Make sure iPhone allows sound: it must be started by a tap.
+  document.addEventListener("pointerdown", () => { if (state.sound && !audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }, { once: true });
+  function flash() {
+    const f = document.createElement("div"); f.className = "flash"; vf.append(f);
+    (f.animate?.([{ opacity: 0.85 }, { opacity: 0 }], { duration: 320, easing: "ease-out" }) || { finished: Promise.resolve() }).finished.then(() => f.remove());
+    if (!f.animate) setTimeout(() => f.remove(), 320);
+  }
+  function reveal() { // the photo "develops" in, like a print in the darkroom
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    $("#imgEdit").animate?.([{ filter: "brightness(0.15) contrast(0.6) blur(8px)", opacity: 0.4 }, { filter: "none", opacity: 1 }], { duration: 1100, easing: "ease-out" });
   }
 
   /* ---------- the editor: live preview while you drag, full quality once you stop ---------- */
@@ -1839,6 +1910,7 @@ function sharpen(p, W, H, amount) {
     grid.textContent = "";
     for (const r of recs) {
       const cell = document.createElement("div"); cell.className = "libcell";
+      const num = document.createElement("span"); num.className = "libnum"; num.textContent = `${recs.length - recs.indexOf(r)}A`; cell.append(num);
       const open = document.createElement("button"); open.className = "libopen"; open.setAttribute("aria-label", "Open photo");
       const img = document.createElement("img"); const u = URL.createObjectURL(r.thumb); libUrls.push(u); img.src = u; img.alt = "";
       open.append(img); open.onclick = () => loadShot(r.id);
@@ -1856,7 +1928,7 @@ function sharpen(p, W, H, amount) {
   async function capture() {
     if (capturing) return; capturing = true;
     try {
-      vf.animate?.([{ opacity: 0.3 }, { opacity: 1 }], { duration: 240 });
+      playSound("shutter"); flash();
       if (state.source === "live") {
         const crop = state.track && state.track.score > 0.65 ? { ...state.track } : null;
         setStatus("Hold still · merging frames…"); await pause();
@@ -1991,6 +2063,8 @@ function sharpen(p, W, H, amount) {
         if (!state.lastBase) return;
         if (key === state.lastKey) { $("#strengthRow").hidden = !$("#strengthRow").hidden; return; } // tap again: strength
         state.lastKey = key; strip.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+        const nm = $("#lookFlash"); nm.textContent = LOOKS[key].label.toUpperCase();
+        nm.animate?.([{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: 1100 });
         $("#sheetLook").textContent = LOOKS[key].label; editChanged();
       };
       strip.append(b);
@@ -2010,9 +2084,23 @@ function sharpen(p, W, H, amount) {
       if (state.dev && b.dataset.view !== state.view) { state.view = b.dataset.view; busy(encodeShot); }
     }));
     $("#beforeBtn").onclick = () => { const on = $("#beforeBtn").getAttribute("aria-pressed") !== "true"; $("#beforeBtn").setAttribute("aria-pressed", on); showBefore(); };
-    const ph = $("#edPhoto");
-    ph.addEventListener("pointerdown", () => { holding = true; showBefore(); });
-    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) ph.addEventListener(ev, () => { if (holding) { holding = false; showBefore(); } });
+    const ph = $("#edPhoto"); let sx = 0, sy = 0, holdTimer = 0, down = false;
+    ph.addEventListener("pointerdown", (e) => { down = true; sx = e.clientX; sy = e.clientY; holdTimer = setTimeout(() => { holding = true; showBefore(); }, 160); });
+    ph.addEventListener("pointermove", (e) => { if (down && Math.abs(e.clientX - sx) > 12) clearTimeout(holdTimer); });
+    const end = (e) => {
+      clearTimeout(holdTimer);
+      if (holding) { holding = false; showBefore(); }
+      if (down && e && e.type === "pointerup") { // swipe left/right = next/previous look
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (Math.abs(dx) > 50 && Math.abs(dy) < 60 && state.lastBase) {
+          const keys = Object.keys(LOOKS), i = keys.indexOf(state.lastKey), next = keys[(i + (dx < 0 ? 1 : -1) + keys.length) % keys.length];
+          $(`.lookthumb[data-look="${next}"]`)?.click();
+          $(`.lookthumb[data-look="${next}"]`)?.scrollIntoView?.({ inline: "center", block: "nearest", behavior: "smooth" });
+        }
+      }
+      down = false;
+    };
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) ph.addEventListener(ev, end);
     ph.addEventListener("contextmenu", (e) => e.preventDefault());
     // delete (tap twice)
     let armed = 0;
@@ -2108,7 +2196,13 @@ function sharpen(p, W, H, amount) {
     const res = state.source === "live" && state.res ? ` · ${state.res}` : "";
     readout.textContent = `${a}:${b} · ${src}${ph}${res}${aiTxt} · ${VERSION}`;
   }
-  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); }
+  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle("warn", !!warn); statusEl.classList.remove("guide"); }
+  // Live directions while aiming, shown in yellow under the picture.
+  let lastGuide = "";
+  function setGuide(msg) {
+    if (msg === lastGuide && statusEl.classList.contains("guide")) return;
+    lastGuide = msg; statusEl.textContent = msg; statusEl.classList.remove("warn"); statusEl.classList.add("guide");
+  }
   function resetToIdle() {
     clearInterval(state.scanTimer);
     state.box = null; state.track = null; state.tpls = null; state.alignedSince = 0; state.analyzing = null; motion.atMatch = null;
@@ -2233,14 +2327,48 @@ function sharpen(p, W, H, amount) {
     }
     refreshLookChips();
   }
-  const toggle = (btn, key) => (btn.onclick = () => { state[key] = !state[key]; btn.setAttribute("aria-pressed", state[key]); });
+  const toggle = (btn, key) => (btn.onclick = () => {
+    state[key] = !state[key]; btn.setAttribute("aria-pressed", state[key]);
+    try { localStorage.setItem("thirds-" + key, state[key] ? "1" : "0"); } catch (e) {}
+  });
+  for (const [id, key] of [["gridBtn", "grid"], ["dateBtn", "stamp"], ["soundBtn", "sound"]]) {
+    try { const v = localStorage.getItem("thirds-" + key); if (v != null) { state[key] = v === "1"; $("#" + id).setAttribute("aria-pressed", state[key]); } } catch (e) {}
+  }
   toggle($("#gridBtn"), "grid");
   toggle($("#dateBtn"), "stamp");
-  $("#aspectBtn").onclick = () => {
-    state.aspectIdx = (state.aspectIdx + 1) % ASPECTS.length;
-    const [a, b] = ASPECTS[state.aspectIdx]; $("#aspectBtn").textContent = `${a}:${b}`;
+  // Small pop-up menus (photo shape, more settings) that open beside their button, wherever it is.
+  function openMenu(menu, btn) {
+    const open = !menu.hidden; closeMenus(); if (open) return;
+    menu.hidden = false; btn.setAttribute("aria-expanded", "true");
+    const r = btn.getBoundingClientRect(), mw = menu.offsetWidth, mh = menu.offsetHeight, W = innerWidth, H = innerHeight, side = document.documentElement.dataset.side;
+    let left, top;
+    if (side === "r") { left = r.left - mw - 8; top = Math.min(r.top, H - mh - 8); }
+    else if (side === "l") { left = r.right + 8; top = Math.min(r.top, H - mh - 8); }
+    else { left = Math.min(Math.max(8, r.left), W - mw - 8); top = r.bottom + 6; if (top + mh > H - 8) top = Math.max(8, r.top - mh - 6); }
+    menu.style.left = Math.max(8, left) + "px"; menu.style.top = Math.max(8, top) + "px";
+  }
+  function closeMenus() { document.querySelectorAll(".popmenu").forEach((m) => (m.hidden = true)); document.querySelectorAll("[aria-expanded]").forEach((b) => b.setAttribute("aria-expanded", "false")); }
+  document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".popmenu, #aspectBtn, #moreBtn")) closeMenus(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+  function setAspect(i) {
+    state.aspectIdx = i; const [a, b] = ASPECTS[i];
+    $("#aspectLabel").textContent = `${a}:${b}`;
+    $("#shapeMenu").querySelectorAll("button").forEach((x) => x.setAttribute("aria-checked", Number(x.dataset.i) === i));
+    try { localStorage.setItem("thirds-aspect", String(i)); } catch (e) {}
     state.ref = null; resetToIdle(); fit();
-  };
+  }
+  (() => {
+    const sm = $("#shapeMenu");
+    ASPECTS.forEach(([a, b], i) => {
+      const o = document.createElement("button"); o.setAttribute("role", "menuitemradio"); o.dataset.i = i; o.setAttribute("aria-checked", i === state.aspectIdx);
+      const sw = document.createElement("i"); sw.style.aspectRatio = `${a} / ${b}`; const t = document.createElement("span"); t.textContent = `${a}:${b}`;
+      o.append(sw, t); o.onclick = () => { closeMenus(); setAspect(i); }; sm.append(o);
+    });
+    $("#aspectBtn").onclick = () => openMenu(sm, $("#aspectBtn"));
+    $("#moreBtn").onclick = () => openMenu($("#moreMenu"), $("#moreBtn"));
+    toggle($("#soundBtn"), "sound");
+    try { const i = Number(localStorage.getItem("thirds-aspect")); if (i > 0 && i < ASPECTS.length) { state.aspectIdx = i; $("#aspectLabel").textContent = ASPECTS[i].join(":"); sm.querySelectorAll("button").forEach((x) => x.setAttribute("aria-checked", Number(x.dataset.i) === i)); } } catch (e) {}
+  })();
   shutter.onclick = () => {
     if (state.phase === "idle") startScan();
     else if (state.phase === "aiming" && state.hq) openHQ();
@@ -2303,6 +2431,7 @@ function sharpen(p, W, H, amount) {
   }
   buildLooks();
   new ResizeObserver(fit).observe(stage);
+  new ResizeObserver(() => fit()).observe(document.getElementById("dock")); // the control bar grows/shrinks with its message
   window.addEventListener("resize", fit);
   useStill(makeSample(), "sample");
   fit();

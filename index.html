@@ -41,14 +41,45 @@ button:focus-visible, label:focus-within { outline: 2px solid var(--accent); out
 .app[data-layout="big"] .controls { max-width: 520px; width: 100%; margin: 0 auto; }
 .app[data-layout="big"] .looks { justify-content: center; }
 .app[data-layout="big"] .status { color: var(--fg); }
+/* compact version for smaller stubby screens: the top controls share one row so the picture gets the height */
+.app[data-layout="big"][data-compact] { gap: 8px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); }
+.app[data-layout="big"][data-compact] header { grid-row: 1; grid-column: 1; min-width: 0; gap: 8px; }
+.app[data-layout="big"][data-compact] .brand h1 { font-size: 24px; }
+.app[data-layout="big"][data-compact] .readout { display: none; }
+.app[data-layout="big"][data-compact] .toggles { gap: 4px; }
+.app[data-layout="big"][data-compact] .tog { padding: 6px 8px; }
+.app[data-layout="big"][data-compact] .sources { grid-row: 1; grid-column: 2; gap: 4px; }
+.app[data-layout="big"][data-compact] .src { padding: 8px 10px; flex: none; }
+.app[data-layout="big"][data-compact] .src span { display: none; }
+.app[data-layout="big"][data-compact] .stage, .app[data-layout="big"][data-compact] .dock { grid-row: 2; grid-column: 1 / -1; }
+.app[data-layout="big"][data-compact] .dock { padding: 22px 8px 2px; gap: 8px; }
+.app[data-layout="big"][data-compact] .status { font-size: 12px; }
+.app[data-layout="big"][data-compact] .looks { justify-content: flex-start; }
 
 /* Wide / landscape screens: picture on the left at full height, controls in a column on the right. */
-.app[data-layout="rail"] { max-width: none; display: grid; gap: 10px 16px; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-  grid-template-rows: auto auto minmax(0, 1fr); }
-.app[data-layout="rail"] .stage { grid-column: 1; grid-row: 1 / span 3; }
+.app[data-layout="rail"] { max-width: none; display: grid; gap: 10px 20px; grid-template-columns: var(--vfw, 60%) minmax(260px, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.app[data-layout="rail"] .stage { grid-column: 1; grid-row: 1 / span 4; justify-content: flex-start; }
 .app[data-layout="rail"] header { grid-column: 2; grid-row: 1; flex-wrap: wrap; }
 .app[data-layout="rail"] .sources { grid-column: 2; grid-row: 2; }
-.app[data-layout="rail"] .dock { grid-column: 2; grid-row: 3; justify-content: flex-end; overflow-y: auto; }
+.app[data-layout="rail"] .railpanel { grid-column: 2; grid-row: 3; display: flex; }
+.app[data-layout="rail"] .dock { grid-column: 2; grid-row: 4; }
+.railpanel { display: none; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; }
+.railpanel section { display: flex; flex-direction: column; gap: 10px; }
+.railpanel h3 { margin: 0; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.railopts { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.railopt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); text-align: left; }
+.railopt span { font-size: 13px; font-weight: 500; }
+.railopt b { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 26px; line-height: 1; color: var(--muted); }
+.railopt[aria-pressed="true"] { border-color: var(--accent); }
+.railopt[aria-pressed="true"] b { color: var(--accent); }
+.railsteps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.45; color: var(--fg); max-width: 46ch; }
+.railsteps b { font-weight: 600; }
+.railtip { margin: 0; font-size: 13px; color: var(--muted); }
+.raillast { margin-top: auto; position: relative; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--void); max-height: 46%; display: flex; }
+.raillast img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.raillast span { position: absolute; left: 10px; top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--void) 70%, transparent); color: var(--fg); padding: 3px 7px; border-radius: 5px; }
 .app[data-layout="rail"] .looks { flex-wrap: wrap; overflow: visible; }
 .app[data-layout="rail"] .status { text-align: left; }
 
@@ -196,11 +227,11 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   </header>
 
   <div class="sources">
-    <button class="src" id="camBtn">
+    <button class="src" id="camBtn" aria-label="Live camera">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
       <span id="camLabel">Live camera</span>
     </button>
-    <label class="src" id="photoBtn">
+    <label class="src" id="photoBtn" aria-label="Use a photo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-5 4 4 2-2 5 5"/></svg>
       <span>Use a photo</span>
       <input type="file" id="photoInput" accept="image/*">
@@ -221,6 +252,24 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <div class="zooms" id="zooms" role="group" aria-label="Zoom" hidden></div>
     </div>
   </div>
+
+  <aside class="railpanel" id="railPanel" aria-label="Shot details">
+    <section id="railShots" hidden>
+      <h3>Suggested shots</h3>
+      <div class="railopts" id="railOpts"></div>
+      <div class="critic" id="railCritic" hidden></div>
+    </section>
+    <section id="railIdle">
+      <h3>How it works</h3>
+      <ol class="railsteps">
+        <li><b>Scan.</b> Press the shutter. Thirds studies the scene for 5 seconds.</li>
+        <li><b>Aim.</b> Move until the crosshair sits in the AIM HERE ring.</li>
+        <li><b>Shoot.</b> It zooms in, adds the look and takes the photo.</li>
+      </ol>
+      <p class="railtip">Drag on the picture to draw your own frame.</p>
+    </section>
+    <button class="raillast" id="railLast" hidden aria-label="Open last photo"><img id="railLastImg" alt="Your last photo"><span>Last photo</span></button>
+  </aside>
 
   <div class="dock" id="dock">
   <p class="status" id="status" aria-live="polite">Press the shutter to scan the scene. Thirds finds the best shot in 5 seconds.</p>
@@ -654,7 +703,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v8.2";
+  const VERSION = "v8.4";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -797,12 +846,20 @@ function sharpen(p, W, H, amount) {
   const appEl = document.querySelector(".app"), dock = document.getElementById("dock");
   function chooseLayout() {
     const w = window.innerWidth, h = window.innerHeight;
-    const mode = w >= 600 && w / h > 1.05 ? "rail" : w >= 560 ? "big" : "";
+    // short, stubby screens (like the iPhone Duo's outer screen) also get the full-picture layout
+    const mode = w >= 600 && w / h > 1.05 ? "rail" : w >= 560 || w / h > 0.56 ? "big" : "";
+    const compact = mode === "big" && w < 560 ? "1" : "";
     if (appEl.dataset.layout !== mode) appEl.dataset.layout = mode;
+    if ((appEl.dataset.compact || "") !== compact) { if (compact) appEl.dataset.compact = compact; else delete appEl.dataset.compact; }
     return mode;
   }
   function fit() {
     const mode = chooseLayout();
+    if (mode === "rail") {
+      const avail = appEl.clientWidth, sh = stage.getBoundingClientRect().height;
+      const want = Math.round(Math.min(sh * aspect(), avail - 280 - 20));
+      if (appEl.style.getPropertyValue("--vfw") !== want + "px") appEl.style.setProperty("--vfw", want + "px");
+    } else appEl.style.removeProperty("--vfw");
     const r = stage.getBoundingClientRect(); let w = r.width, h = w / aspect();
     if (h > r.height) { h = r.height; w = h * aspect(); }
     let clear = 0;
@@ -812,6 +869,7 @@ function sharpen(p, W, H, amount) {
     }
     vf.style.setProperty("--clear", clear + "px");
     vf.style.width = w + "px"; vf.style.height = h + "px";
+    renderRail();
     const dpr = window.devicePixelRatio || 1;
     overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
     showStill();
@@ -948,7 +1006,7 @@ function sharpen(p, W, H, amount) {
     $("#resetBtn").hidden = !(p === "aiming" || p === "ready");
     $("#target").hidden = p !== "aiming";
     if (p !== "aiming" && p !== "ready") { $("#picker").hidden = true; tag.hidden = state.source !== "sample"; }
-    updateAsk(); setReadout();
+    updateAsk(); setReadout(); renderRail();
   }
   function startScan() {
     const src = currentSrc();
@@ -1005,6 +1063,31 @@ function sharpen(p, W, H, amount) {
     const c = state.critic; if (!c) return;
     const good = c.notes.filter((n) => n.ok).slice(0, 2).map((n) => n.text), bad = c.notes.filter((n) => !n.ok).slice(0, 1).map((n) => n.text);
     setStatus(`Shot score ${c.score} · ` + [...good.map((t) => t + " ✓"), ...bad.map((t) => t + " ✗")].join(" · "));
+    renderRail();
+  }
+  // Side panel on wide screens: suggested shots, the full shot score, and your last photo.
+  function renderRail() {
+    if (appEl.dataset.layout !== "rail") return;
+    const active = (state.phase === "aiming" || state.phase === "ready") && state.options.length > 0;
+    const opts = $("#railOpts"); opts.textContent = ""; $("#railShots").hidden = !active;
+    if (active) state.options.forEach((o, i) => {
+      const b = document.createElement("button"); b.className = "railopt"; b.setAttribute("aria-pressed", i === state.optIdx);
+      const n = document.createElement("span"); n.textContent = o.label;
+      const sc = document.createElement("b"); sc.textContent = o.critic ? o.critic.score : "–";
+      b.append(n, sc); b.onclick = () => selectOption(i); opts.append(b);
+    });
+    const cr = $("#railCritic"), c = active ? state.critic : null; cr.textContent = ""; cr.hidden = !c;
+    if (c) {
+      const sc = document.createElement("div"); sc.className = "score"; sc.innerHTML = `<b>${c.score}</b><span>shot score</span>`;
+      const ul = document.createElement("ul");
+      for (const n of c.notes) { const li = document.createElement("li"); li.className = n.ok ? "ok" : "no"; li.textContent = (n.ok ? "✓ " : "✗ ") + n.text; ul.append(li); }
+      cr.append(sc, ul);
+    }
+    $("#railIdle").hidden = active;
+    const last = state.lastShot?.editUrl && state.view === "framed" ? state.lastShot.editUrl : state.lastShot?.railUrl;
+    const img = $("#railLastImg");
+    if (last) { img.src = last; if (state.lastShot) state.lastShot.railUrl = last; }
+    $("#railLast").hidden = !last;
   }
   function renderPicker() {
     const wrap = $("#picker"), show = (state.phase === "aiming" || state.phase === "ready") && state.options.length > 1;
@@ -1017,6 +1100,8 @@ function sharpen(p, W, H, amount) {
       b.onclick = (e) => { e.stopPropagation(); selectOption(i); };
       wrap.append(b);
     });
+    if (appEl.dataset.layout === "rail") wrap.hidden = true; // shown in the side panel instead
+    renderRail();
   }
   function drawTargetThumb() {
     const tc = $("#targetThumb"), b = state.box, rw = state.ref.width, rh = state.ref.height;
@@ -1307,6 +1392,7 @@ function sharpen(p, W, H, amount) {
       size: `${edited.width}×${edited.height}`,
       look: LOOKS[key].label + (state.look === "auto" && state.auto && key === state.auto.look ? ` · auto for ${state.auto.why}` : "") };
     if (view === "framed") { $("#thumb").style.backgroundImage = `url(${state.lastShot.editUrl})`; $("#thumb").disabled = false; }
+    renderRail();
   }
   async function finishShot(base, crop, note, raw, rawCrop) {
     state.lastBase = base; state.lastCrop = crop; state.view = "framed";
@@ -1429,6 +1515,7 @@ function sharpen(p, W, H, amount) {
     $("#viewSeg").querySelectorAll("button").forEach((b) => (b.onclick = () => { if (state.dev && b.dataset.view !== state.view) { state.view = b.dataset.view; busy(encodeShot); } }));
   })();
   $("#thumb").onclick = openSheet;
+  $("#railLast").onclick = openSheet;
   $("#closeSheet").onclick = () => ($("#sheet").hidden = true);
   $("#sheet").onclick = (e) => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
   document.querySelectorAll("[data-save]").forEach((btn) => (btn.onclick = async () => {

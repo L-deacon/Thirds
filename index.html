@@ -30,6 +30,36 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-block: 10px; }
+.dock { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* Big portrait screens (iPhone Duo unfolded, tablets): use the full width; the picture fills the screen
+   and the controls float over the bottom on a soft dark fade, like the Camera app. */
+.app[data-layout="big"] { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+.app[data-layout="big"] .stage { grid-row: 3; grid-column: 1; align-items: flex-start; }
+.app[data-layout="big"] .dock { grid-row: 3; grid-column: 1; align-self: end; z-index: 5; padding: 28px 12px 4px;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 88%, transparent) 38%); border-radius: 0 0 18px 18px; }
+.app[data-layout="big"] .controls { max-width: 520px; width: 100%; margin: 0 auto; }
+.app[data-layout="big"] .looks { justify-content: center; }
+.app[data-layout="big"] .status { color: var(--fg); }
+
+/* Wide / landscape screens: picture on the left at full height, controls in a column on the right. */
+.app[data-layout="rail"] { max-width: none; display: grid; gap: 10px 16px; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-rows: auto auto minmax(0, 1fr); }
+.app[data-layout="rail"] .stage { grid-column: 1; grid-row: 1 / span 3; }
+.app[data-layout="rail"] header { grid-column: 2; grid-row: 1; flex-wrap: wrap; }
+.app[data-layout="rail"] .sources { grid-column: 2; grid-row: 2; }
+.app[data-layout="rail"] .dock { grid-column: 2; grid-row: 3; justify-content: flex-end; overflow-y: auto; }
+.app[data-layout="rail"] .looks { flex-wrap: wrap; overflow: visible; }
+.app[data-layout="rail"] .status { text-align: left; }
+
+.vf .hint { bottom: calc(12px + var(--clear, 0px)); }
+.zooms { bottom: calc(12px + var(--clear, 0px)) !important; }
+.vf.has-zoom .hint { bottom: calc(58px + var(--clear, 0px)); }
+@media (min-width: 600px) {
+  .sheet { align-items: center; }
+  .sheet-card { max-width: 900px; border-radius: 20px; border: 1px solid var(--line); max-height: 94%; }
+  .shots img { max-height: 52vh; }
+}
 
 header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
@@ -192,6 +222,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     </div>
   </div>
 
+  <div class="dock" id="dock">
   <p class="status" id="status" aria-live="polite">Press the shutter to scan the scene. Thirds finds the best shot in 5 seconds.</p>
 
   <div class="looks" id="looks" role="group" aria-label="Film look"></div>
@@ -203,6 +234,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       <button class="round" id="askBtn" hidden aria-label="Ask Claude to frame this photo"><i>✎</i>Claude</button>
       <button class="round" id="resetBtn" hidden aria-label="Start a new scan"><i>↺</i>Rescan</button>
     </div>
+  </div>
   </div>
 </div>
 
@@ -622,7 +654,7 @@ function sharpen(p, W, H, amount) {
   const $ = (s) => document.querySelector(s);
   const video = $("#video"), lens = $("#lens"), still = $("#still"), overlay = $("#overlay"), vf = $("#vf"), stage = $("#stage");
   const hint = $("#hint"), tag = $("#tag"), statusEl = $("#status"), readout = $("#readout"), shutter = $("#shutter");
-  const VERSION = "v8.1";
+  const VERSION = "v8.2";
 
   const ASPECTS = [[3, 4], [4, 5], [1, 1]];
   const LOOKS = {
@@ -760,9 +792,25 @@ function sharpen(p, W, H, amount) {
   }
 
   /* ---------- viewfinder ---------- */
+  // Pick a layout for the screen: normal phone, big portrait screen (e.g. iPhone Duo unfolded),
+  // or wide/landscape screen (controls move to a side column).
+  const appEl = document.querySelector(".app"), dock = document.getElementById("dock");
+  function chooseLayout() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const mode = w >= 600 && w / h > 1.05 ? "rail" : w >= 560 ? "big" : "";
+    if (appEl.dataset.layout !== mode) appEl.dataset.layout = mode;
+    return mode;
+  }
   function fit() {
+    const mode = chooseLayout();
     const r = stage.getBoundingClientRect(); let w = r.width, h = w / aspect();
     if (h > r.height) { h = r.height; w = h * aspect(); }
+    let clear = 0;
+    if (mode === "big") { // the controls float over the bottom of the screen; only overlap the picture if there's no spare room
+      const spare = r.height - h, dh = dock.offsetHeight + 10;
+      clear = Math.max(0, dh - spare);
+    }
+    vf.style.setProperty("--clear", clear + "px");
     vf.style.width = w + "px"; vf.style.height = h + "px";
     const dpr = window.devicePixelRatio || 1;
     overlay.width = Math.round(w * dpr); overlay.height = Math.round(h * dpr);
@@ -1641,6 +1689,7 @@ function sharpen(p, W, H, amount) {
   }
   buildLooks();
   new ResizeObserver(fit).observe(stage);
+  window.addEventListener("resize", fit);
   useStill(makeSample(), "sample");
   fit();
   requestAnimationFrame(loop);
